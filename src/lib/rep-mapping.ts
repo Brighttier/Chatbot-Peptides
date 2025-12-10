@@ -1,6 +1,7 @@
 import type { RepMapping } from "@/types";
 
 // Rep ID to phone number mapping
+// DEFAULT_REP_PHONE_NUMBER is set via environment secret
 // In production, this could be stored in Firestore or another database
 const repMapping: RepMapping = {
   // Add your rep mappings here
