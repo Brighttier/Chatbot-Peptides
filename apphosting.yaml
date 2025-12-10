@@ -4,18 +4,25 @@ runConfig:
   concurrency: 80
 
 env:
+  # Public Firebase config (available at build time)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    secret: NEXT_PUBLIC_FIREBASE_API_KEY
+    value: AIzaSyC0HXtRTWMO7Tq3u4wd-XUg91JTcDMQdJE
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
-    secret: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
+    value: guardian-intelligence-platform.firebaseapp.com
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
-    secret: NEXT_PUBLIC_FIREBASE_PROJECT_ID
+    value: guardian-intelligence-platform
   - variable: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-    secret: NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
+    value: guardian-intelligence-platform.firebasestorage.app
   - variable: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-    secret: NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+    value: "976444878119"
   - variable: NEXT_PUBLIC_FIREBASE_APP_ID
-    secret: NEXT_PUBLIC_FIREBASE_APP_ID
+    value: 1:976444878119:web:9b25eaf072420487e94d02
+  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_ID
+    value: chatbot
+  - variable: FIREBASE_DATABASE_ID
+    value: chatbot
+
+  # Secrets (sensitive values - available at runtime)
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
     secret: FIREBASE_SERVICE_ACCOUNT_KEY
   - variable: TWILIO_ACCOUNT_SID
@@ -32,7 +39,3 @@ env:
     secret: HEYGEN_VOICE_ID
   - variable: DEFAULT_REP_PHONE_NUMBER
     secret: DEFAULT_REP_PHONE_NUMBER
-  - variable: FIREBASE_DATABASE_ID
-    secret: FIREBASE_DATABASE_ID
-  - variable: NEXT_PUBLIC_FIREBASE_DATABASE_ID
-    secret: NEXT_PUBLIC_FIREBASE_DATABASE_ID
