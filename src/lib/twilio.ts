@@ -121,19 +121,23 @@ export async function addChatParticipant(
   return participant.sid;
 }
 
-// Send message to conversation
+// Send message to conversation (includes customer phone in message for SMS visibility)
 export async function sendConversationMessage(
   conversationSid: string,
   author: string,
-  body: string
+  body: string,
+  includeAuthorPrefix: boolean = true
 ): Promise<string> {
   const client = getTwilioClient();
+
+  // Include author phone number as prefix so rep can see who the message is from
+  const messageBody = includeAuthorPrefix ? `[${author}] ${body}` : body;
 
   const message = await client.conversations.v1
     .conversations(conversationSid)
     .messages.create({
       author,
-      body,
+      body: messageBody,
     });
 
   return message.sid;
