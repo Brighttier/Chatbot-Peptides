@@ -1,0 +1,170 @@
+"use client";
+
+import { Phone, Instagram, MessageCircle, Clock, Hash, User } from "lucide-react";
+import type { Conversation } from "@/types";
+import { Timestamp } from "firebase/firestore";
+
+interface CustomerDetailsProps {
+  conversation: Conversation | null;
+}
+
+export function CustomerDetails({ conversation }: CustomerDetailsProps) {
+  if (!conversation) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center border-l bg-gray-50 text-gray-400">
+        <User className="h-12 w-12 mb-2 opacity-30" />
+        <p className="text-sm">Select a conversation</p>
+      </div>
+    );
+  }
+
+  const formatDate = (timestamp: Timestamp | Date | unknown) => {
+    const date =
+      timestamp instanceof Timestamp
+        ? timestamp.toDate()
+        : timestamp instanceof Date
+        ? timestamp
+        : new Date(timestamp as number);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+    });
+  };
+
+  return (
+    <div className="flex h-full flex-col border-l bg-white">
+      {/* Header */}
+      <div className="border-b px-4 py-4">
+        <h3 className="text-lg font-semibold text-gray-900">Customer Details</h3>
+      </div>
+
+      {/* Details */}
+      <div className="flex-1 overflow-y-auto p-4">
+        <div className="space-y-6">
+          {/* Customer Avatar & Phone */}
+          <div className="flex flex-col items-center pb-4 border-b">
+            <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-3">
+              <User className="h-8 w-8 text-blue-500" />
+            </div>
+            <h4 className="font-medium text-gray-900">
+              {conversation.userMobileNumber}
+            </h4>
+            <span
+              className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
+                conversation.status === "active"
+                  ? "bg-green-100 text-green-700"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              {conversation.status}
+            </span>
+          </div>
+
+          {/* Contact Information */}
+          <div className="space-y-4">
+            <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Contact Information
+            </h5>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                  <Phone className="h-4 w-4 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Phone</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {conversation.userMobileNumber}
+                  </p>
+                </div>
+              </div>
+
+              {conversation.userInstagramHandle && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                    <Instagram className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Instagram</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      @{conversation.userInstagramHandle}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Conversation Details */}
+          <div className="space-y-4">
+            <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Conversation Details
+            </h5>
+
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                  <MessageCircle className="h-4 w-4 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Chat Mode</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {conversation.chatMode === "AI" ? "AI Assistant" : "Human Support"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                  <Clock className="h-4 w-4 text-gray-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Started</p>
+                  <p className="text-sm font-medium text-gray-900">
+                    {formatDate(conversation.createdAt)}
+                  </p>
+                </div>
+              </div>
+
+              {conversation.twilioConversationSid && (
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                    <Hash className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Twilio SID</p>
+                    <p className="text-xs font-mono text-gray-600 break-all">
+                      {conversation.twilioConversationSid}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Rep Phone */}
+          <div className="space-y-4">
+            <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Assigned To
+            </h5>
+
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100">
+                <Phone className="h-4 w-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-xs text-gray-500">Rep Phone</p>
+                <p className="text-sm font-medium text-gray-900">
+                  {conversation.repPhoneNumber}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
