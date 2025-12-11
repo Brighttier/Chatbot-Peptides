@@ -123,6 +123,16 @@ export function StreamingAvatar({
         console.log("Signal connected to LiveKit");
       });
 
+      // Handle participant connected (avatar joining)
+      room.on(RoomEvent.ParticipantConnected, (participant) => {
+        console.log("Participant connected:", participant.identity);
+      });
+
+      // Handle when remote tracks are published (but not yet subscribed)
+      room.on(RoomEvent.TrackPublished, (publication, participant) => {
+        console.log("Track published:", publication.kind, "from", participant.identity);
+      });
+
       // Connect to the room with a timeout
       await Promise.race([
         room.connect(url, token),
@@ -132,6 +142,26 @@ export function StreamingAvatar({
       ]);
 
       console.log("Connected to LiveKit room successfully");
+      console.log("Room state:", room.state);
+      console.log("Remote participants:", room.remoteParticipants.size);
+
+      // List existing participants and their tracks
+      room.remoteParticipants.forEach((participant) => {
+        console.log("Existing participant:", participant.identity);
+        participant.trackPublications.forEach((pub) => {
+          console.log("  - Track:", pub.kind, pub.trackSid, "subscribed:", pub.isSubscribed);
+          // If track exists but not subscribed, subscribe to it
+          if (pub.track && !pub.isSubscribed) {
+            if (pub.kind === Track.Kind.Video && videoRef.current) {
+              pub.track.attach(videoRef.current);
+              setIsStreamReady(true);
+            } else if (pub.kind === Track.Kind.Audio && audioRef.current) {
+              pub.track.attach(audioRef.current);
+            }
+          }
+        });
+      });
+
       return true;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -180,8 +210,9 @@ export function StreamingAvatar({
 
       // Connect to LiveKit for video streaming
       if (data.url && data.accessToken) {
-        // Small delay to ensure HeyGen session is fully initialized
-        await new Promise(resolve => setTimeout(resolve, 500));
+        // Delay to ensure HeyGen session is fully initialized and avatar is joining
+        // HeyGen needs time after streaming.start to have the avatar join the room
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         const connected = await connectToLiveKit(data.url, data.accessToken);
 
