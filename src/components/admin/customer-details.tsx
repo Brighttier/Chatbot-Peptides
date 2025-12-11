@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, Instagram, MessageCircle, Clock, Hash, User, Calendar, CheckCircle2, XCircle } from "lucide-react";
+import { Phone, Instagram, MessageCircle, Clock, Hash, User, Calendar, CheckCircle2, XCircle, Target, Compass, ShoppingBag } from "lucide-react";
 import type { Conversation } from "@/types";
 import { Timestamp } from "firebase/firestore";
 
@@ -108,6 +108,76 @@ export function CustomerDetails({ conversation }: CustomerDetailsProps) {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Intake Answers */}
+          {conversation.customerInfo?.intakeAnswers && (
+            <div className="space-y-4">
+              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Intake Answers
+              </h5>
+
+              <div className="space-y-3">
+                {/* Goals */}
+                {conversation.customerInfo.intakeAnswers.goals?.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-purple-100 flex-shrink-0">
+                      <Target className="h-4 w-4 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Goals</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {conversation.customerInfo.intakeAnswers.goals.map((goal) => (
+                          <span
+                            key={goal}
+                            className="inline-flex items-center rounded-full bg-purple-50 px-2 py-0.5 text-xs font-medium text-purple-700"
+                          >
+                            {goal}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stage */}
+                {conversation.customerInfo.intakeAnswers.stage && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-100 flex-shrink-0">
+                      <Compass className="h-4 w-4 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Journey Stage</p>
+                      <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700 mt-1">
+                        {conversation.customerInfo.intakeAnswers.stage}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* Interests */}
+                {conversation.customerInfo.intakeAnswers.interest?.length > 0 && (
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-green-100 flex-shrink-0">
+                      <ShoppingBag className="h-4 w-4 text-green-600" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Interests</p>
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {conversation.customerInfo.intakeAnswers.interest.map((interest) => (
+                          <span
+                            key={interest}
+                            className="inline-flex items-center rounded-full bg-green-50 px-2 py-0.5 text-xs font-medium text-green-700"
+                          >
+                            {interest}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

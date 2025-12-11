@@ -9,6 +9,13 @@ export type MessageSender = "USER" | "ADMIN" | "AI";
 // Conversation status
 export type ConversationStatus = "active" | "ended" | "closed" | "archived";
 
+// Intake questions answers
+export interface IntakeAnswers {
+  goals: string[]; // Muscle Growth, Anti-Aging, Recovery, Other
+  stage: string; // Starting Protocol, Optimizing, Researching
+  interest: string[]; // Purchasing, Coaching, Personalized Advice
+}
+
 // Customer information collected at chat start
 export interface CustomerInfo {
   firstName: string;
@@ -17,6 +24,7 @@ export interface CustomerInfo {
   consentGiven: boolean;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   consentTimestamp?: Timestamp | any; // Accepts both client and admin Timestamp
+  intakeAnswers?: IntakeAnswers;
 }
 
 // Conversation document structure (Firestore)
@@ -51,6 +59,7 @@ export interface InitChatRequest {
   lastName: string;
   dateOfBirth: string;
   consentGiven: boolean;
+  intakeAnswers?: IntakeAnswers;
 }
 
 export interface InitAIChatRequest {
@@ -60,6 +69,7 @@ export interface InitAIChatRequest {
   lastName: string;
   dateOfBirth: string;
   consentGiven: boolean;
+  intakeAnswers?: IntakeAnswers;
 }
 
 export interface SendMessageRequest {

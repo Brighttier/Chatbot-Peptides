@@ -16,7 +16,7 @@ import type { InitChatRequest, InitChatResponse } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body: InitChatRequest = await request.json();
-    const { repId, userMobileNumber, userInstagramHandle, firstName, lastName, dateOfBirth, consentGiven } = body;
+    const { repId, userMobileNumber, userInstagramHandle, firstName, lastName, dateOfBirth, consentGiven, intakeAnswers } = body;
 
     // Validate required fields
     if (!repId || !userMobileNumber || !firstName || !lastName || !dateOfBirth) {
@@ -81,6 +81,7 @@ export async function POST(request: NextRequest) {
         dateOfBirth,
         consentGiven: true,
         consentTimestamp: Timestamp.now(),
+        ...(intakeAnswers && { intakeAnswers }),
       },
     };
 

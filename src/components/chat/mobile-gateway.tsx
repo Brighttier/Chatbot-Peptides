@@ -7,6 +7,12 @@ import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Phone, Instagram, ArrowRight, Loader2, User, Calendar, CheckCircle2 } from "lucide-react";
 
+interface IntakeAnswers {
+  goals: string[];
+  stage: string;
+  interest: string[];
+}
+
 interface CustomerData {
   mobileNumber: string;
   instagramHandle?: string;
@@ -14,7 +20,13 @@ interface CustomerData {
   lastName: string;
   dateOfBirth: string;
   consentGiven: boolean;
+  intakeAnswers?: IntakeAnswers;
 }
+
+// Intake question options
+const GOAL_OPTIONS = ["Muscle Growth", "Anti-Aging", "Recovery", "Other"];
+const STAGE_OPTIONS = ["Starting a Protocol", "Optimizing Existing Protocol", "Just Researching"];
+const INTEREST_OPTIONS = ["Purchasing Peptides", "Coaching Services", "Personalized Advice"];
 
 interface MobileGatewayProps {
   repId: string;
@@ -35,6 +47,23 @@ export function MobileGateway({
   const [consentGiven, setConsentGiven] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+
+  // Intake questions state
+  const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
+  const [selectedStage, setSelectedStage] = useState("");
+  const [selectedInterests, setSelectedInterests] = useState<string[]>([]);
+
+  const toggleGoal = (goal: string) => {
+    setSelectedGoals(prev =>
+      prev.includes(goal) ? prev.filter(g => g !== goal) : [...prev, goal]
+    );
+  };
+
+  const toggleInterest = (interest: string) => {
+    setSelectedInterests(prev =>
+      prev.includes(interest) ? prev.filter(i => i !== interest) : [...prev, interest]
+    );
+  };
 
   const formatPhoneNumber = (value: string): string => {
     // Remove all non-digits
@@ -85,6 +114,17 @@ export function MobileGateway({
     try {
       // Convert to E.164 format
       const e164Number = "+1" + mobileNumber.replace(/\D/g, "");
+
+      // Build intake answers if any were provided
+      const intakeAnswers: IntakeAnswers | undefined =
+        selectedGoals.length > 0 || selectedStage || selectedInterests.length > 0
+          ? {
+              goals: selectedGoals,
+              stage: selectedStage,
+              interest: selectedInterests,
+            }
+          : undefined;
+
       await onSubmit({
         mobileNumber: e164Number,
         instagramHandle: instagramHandle || undefined,
@@ -92,6 +132,7 @@ export function MobileGateway({
         lastName: lastName.trim(),
         dateOfBirth,
         consentGiven,
+        intakeAnswers,
       });
     } catch (err) {
       setError("Failed to start chat. Please try again.");
@@ -196,6 +237,87 @@ export function MobileGateway({
               />
             </div>
           )}
+
+          {/* Intake Questions */}
+          <div className="space-y-4 pt-2 border-t">
+            <p className="text-sm font-medium text-center text-muted-foreground">Quick Questions</p>
+
+            {/* Q1: Goals */}
+            <div className="space-y-2">
+              <Label className="text-sm">What results are you hoping to achieve?</Label>
+              <div className="grid grid-cols-2 gap-2">
+                {GOAL_OPTIONS.map((goal) => (
+                  <label
+                    key={goal}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${
+                      selectedGoals.includes(goal)
+                        ? "bg-primary/10 border-primary"
+                        : "bg-background hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedGoals.includes(goal)}
+                      onChange={() => toggleGoal(goal)}
+                      className="h-3.5 w-3.5 rounded"
+                    />
+                    {goal}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Q2: Stage */}
+            <div className="space-y-2">
+              <Label className="text-sm">Where are you in your journey?</Label>
+              <div className="space-y-1.5">
+                {STAGE_OPTIONS.map((stage) => (
+                  <label
+                    key={stage}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${
+                      selectedStage === stage
+                        ? "bg-primary/10 border-primary"
+                        : "bg-background hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="stage"
+                      checked={selectedStage === stage}
+                      onChange={() => setSelectedStage(stage)}
+                      className="h-3.5 w-3.5"
+                    />
+                    {stage}
+                  </label>
+                ))}
+              </div>
+            </div>
+
+            {/* Q3: Interest */}
+            <div className="space-y-2">
+              <Label className="text-sm">What are you interested in?</Label>
+              <div className="space-y-1.5">
+                {INTEREST_OPTIONS.map((interest) => (
+                  <label
+                    key={interest}
+                    className={`flex items-center gap-2 p-2 rounded-lg border cursor-pointer transition-colors text-sm ${
+                      selectedInterests.includes(interest)
+                        ? "bg-primary/10 border-primary"
+                        : "bg-background hover:bg-muted/50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedInterests.includes(interest)}
+                      onChange={() => toggleInterest(interest)}
+                      className="h-3.5 w-3.5 rounded"
+                    />
+                    {interest}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
 
           {/* Consent Checkbox */}
           <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
