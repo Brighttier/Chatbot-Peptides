@@ -153,15 +153,10 @@ export function WidgetContainer({
 
   const handleIntakeSubmit = useCallback(
     (answers: IntakeAnswers) => {
-      const hasAnswers = answers.goals.length > 0 || answers.stage || answers.interest.length > 0;
-      submitChat(hasAnswers ? answers : undefined);
+      submitChat(answers);
     },
     [submitChat]
   );
-
-  const handleIntakeSkip = useCallback(() => {
-    submitChat(undefined);
-  }, [submitChat]);
 
   const handleClose = () => {
     setStep("collapsed");
@@ -296,7 +291,6 @@ export function WidgetContainer({
             {step === "human-intake" && (
               <WidgetIntakeQuestions
                 onSubmit={handleIntakeSubmit}
-                onSkip={handleIntakeSkip}
                 isLoading={isSubmitting}
               />
             )}

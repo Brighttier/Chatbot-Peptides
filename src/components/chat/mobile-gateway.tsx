@@ -112,21 +112,31 @@ export function MobileGateway({
     setStep("intake");
   };
 
+  const validateIntakeForm = (): string | null => {
+    if (selectedGoals.length === 0) return "Please select at least one goal";
+    if (!selectedStage) return "Please select where you are in your journey";
+    if (selectedInterests.length === 0) return "Please select at least one interest";
+    return null;
+  };
+
   const handleFinalSubmit = async () => {
+    const validationError = validateIntakeForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+
     setIsLoading(true);
     setError("");
 
     try {
       const e164Number = "+1" + mobileNumber.replace(/\D/g, "");
 
-      const intakeAnswers: IntakeAnswers | undefined =
-        selectedGoals.length > 0 || selectedStage || selectedInterests.length > 0
-          ? {
-              goals: selectedGoals,
-              stage: selectedStage,
-              interest: selectedInterests,
-            }
-          : undefined;
+      const intakeAnswers: IntakeAnswers = {
+        goals: selectedGoals,
+        stage: selectedStage,
+        interest: selectedInterests,
+      };
 
       await onSubmit({
         mobileNumber: e164Number,
@@ -390,15 +400,6 @@ export function MobileGateway({
             )}
           </Button>
         </div>
-
-        <button
-          type="button"
-          onClick={handleFinalSubmit}
-          disabled={isLoading}
-          className="w-full text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Skip and start chat
-        </button>
       </Card>
     </div>
   );

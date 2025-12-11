@@ -13,7 +13,6 @@ export interface IntakeAnswers {
 
 interface WidgetIntakeQuestionsProps {
   onSubmit: (answers: IntakeAnswers) => void;
-  onSkip: () => void;
   isLoading?: boolean;
 }
 
@@ -23,7 +22,6 @@ const INTEREST_OPTIONS = ["Purchasing Peptides", "Coaching Services", "Personali
 
 export function WidgetIntakeQuestions({
   onSubmit,
-  onSkip,
   isLoading = false,
 }: WidgetIntakeQuestionsProps) {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
@@ -42,15 +40,28 @@ export function WidgetIntakeQuestions({
     );
   };
 
+  const [error, setError] = useState("");
+
+  const validateForm = (): string | null => {
+    if (selectedGoals.length === 0) return "Please select at least one goal";
+    if (!selectedStage) return "Please select where you are in your journey";
+    if (selectedInterests.length === 0) return "Please select at least one interest";
+    return null;
+  };
+
   const handleSubmit = () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setError(validationError);
+      return;
+    }
+    setError("");
     onSubmit({
       goals: selectedGoals,
       stage: selectedStage,
       interest: selectedInterests,
     });
   };
-
-  const hasAnswers = selectedGoals.length > 0 || selectedStage || selectedInterests.length > 0;
 
   return (
     <div className="flex flex-col h-full p-4 overflow-y-auto">
@@ -139,7 +150,13 @@ export function WidgetIntakeQuestions({
         </div>
       </div>
 
-      <div className="mt-3 space-y-2">
+      {error && (
+        <p className="text-xs text-red-600 text-center bg-red-50 p-2 rounded-lg mb-2">
+          {error}
+        </p>
+      )}
+
+      <div className="mt-3">
         <Button
           onClick={handleSubmit}
           className="w-full h-10 bg-blue-600 hover:bg-blue-700"
@@ -149,20 +166,11 @@ export function WidgetIntakeQuestions({
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : (
             <>
-              {hasAnswers ? "Continue" : "Skip & Continue"}
+              Continue
               <ArrowRight className="h-4 w-4 ml-2" />
             </>
           )}
         </Button>
-        {hasAnswers && (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="w-full text-xs text-gray-500 hover:text-gray-700"
-          >
-            Skip these questions
-          </button>
-        )}
       </div>
     </div>
   );
