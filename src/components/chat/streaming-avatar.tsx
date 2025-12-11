@@ -78,8 +78,12 @@ export function StreamingAvatar({
   }, []);
 
   // Connect to LiveKit room for video streaming
-  const connectToLiveKit = useCallback(async (url: string, token: string) => {
+  const connectToLiveKit = useCallback(async (url: string, token: string, retryCount = 0): Promise<boolean> => {
+    const MAX_RETRIES = 2;
+
     try {
+      console.log(`Connecting to LiveKit (attempt ${retryCount + 1})...`, { url: url.substring(0, 30) + '...' });
+
       const room = new Room({
         adaptiveStream: true,
         dynacast: true,
@@ -89,7 +93,7 @@ export function StreamingAvatar({
 
       // Handle track subscription
       room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication) => {
-        console.log("Track subscribed:", track.kind);
+        console.log("Track subscribed:", track.kind, publication.trackSid);
 
         if (track.kind === Track.Kind.Video && videoRef.current) {
           track.attach(videoRef.current);
@@ -109,18 +113,37 @@ export function StreamingAvatar({
       });
 
       // Handle disconnection
-      room.on(RoomEvent.Disconnected, () => {
-        console.log("Disconnected from LiveKit room");
+      room.on(RoomEvent.Disconnected, (reason) => {
+        console.log("Disconnected from LiveKit room:", reason);
         setIsStreamReady(false);
       });
 
-      // Connect to the room
-      await room.connect(url, token);
-      console.log("Connected to LiveKit room");
+      // Handle connection errors
+      room.on(RoomEvent.SignalConnected, () => {
+        console.log("Signal connected to LiveKit");
+      });
 
+      // Connect to the room with a timeout
+      await Promise.race([
+        room.connect(url, token),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Connection timeout')), 15000)
+        )
+      ]);
+
+      console.log("Connected to LiveKit room successfully");
       return true;
     } catch (err) {
-      console.error("Failed to connect to LiveKit:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      console.error(`Failed to connect to LiveKit (attempt ${retryCount + 1}):`, errorMessage);
+
+      // Retry on connection failure (not on auth errors)
+      if (retryCount < MAX_RETRIES && !errorMessage.includes('401') && !errorMessage.includes('unauthorized')) {
+        console.log(`Retrying LiveKit connection in 1 second...`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        return connectToLiveKit(url, token, retryCount + 1);
+      }
+
       return false;
     }
   }, []);
@@ -157,6 +180,9 @@ export function StreamingAvatar({
 
       // Connect to LiveKit for video streaming
       if (data.url && data.accessToken) {
+        // Small delay to ensure HeyGen session is fully initialized
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         const connected = await connectToLiveKit(data.url, data.accessToken);
 
         if (!connected) {
