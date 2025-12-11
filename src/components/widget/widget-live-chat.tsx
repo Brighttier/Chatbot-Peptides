@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, User, Bot, Loader2, UserCircle } from "lucide-react";
@@ -34,10 +34,11 @@ export function WidgetLiveChat({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Convert Firestore messages to display format
-  const convertMessages = useCallback(
-    (firestoreMessages: Message[]): DisplayMessage[] => {
-      return firestoreMessages.map((m) => ({
+  // Subscribe to real-time message updates
+  useEffect(() => {
+    const unsubscribe = subscribeToMessages(conversationId, (newMessages) => {
+      // Convert Firestore messages to display format inline to avoid dependency issues
+      const displayMessages: DisplayMessage[] = newMessages.map((m) => ({
         id: m.id!,
         content: m.content,
         sender: m.sender,
@@ -46,18 +47,11 @@ export function WidgetLiveChat({
             ? m.timestamp.toDate()
             : new Date(m.timestamp as unknown as number),
       }));
-    },
-    []
-  );
-
-  // Subscribe to real-time message updates
-  useEffect(() => {
-    const unsubscribe = subscribeToMessages(conversationId, (newMessages) => {
-      setMessages(convertMessages(newMessages));
+      setMessages(displayMessages);
     });
 
     return () => unsubscribe();
-  }, [conversationId, convertMessages]);
+  }, [conversationId]);
 
   // Auto-scroll to bottom
   useEffect(() => {

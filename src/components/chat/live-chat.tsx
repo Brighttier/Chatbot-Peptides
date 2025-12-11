@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -38,27 +38,24 @@ export function LiveChat({
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Convert Firestore messages to display format
-  const convertMessages = useCallback((firestoreMessages: Message[]): DisplayMessage[] => {
-    return firestoreMessages.map((m) => ({
-      id: m.id!,
-      content: m.content,
-      sender: m.sender,
-      timestamp:
-        m.timestamp instanceof Timestamp
-          ? m.timestamp.toDate()
-          : new Date(m.timestamp as unknown as number),
-    }));
-  }, []);
-
   // Subscribe to real-time message updates
   useEffect(() => {
     const unsubscribe = subscribeToMessages(conversationId, (newMessages) => {
-      setMessages(convertMessages(newMessages));
+      // Convert Firestore messages to display format inline to avoid dependency issues
+      const displayMessages: DisplayMessage[] = newMessages.map((m) => ({
+        id: m.id!,
+        content: m.content,
+        sender: m.sender,
+        timestamp:
+          m.timestamp instanceof Timestamp
+            ? m.timestamp.toDate()
+            : new Date(m.timestamp as unknown as number),
+      }));
+      setMessages(displayMessages);
     });
 
     return () => unsubscribe();
-  }, [conversationId, convertMessages]);
+  }, [conversationId]);
 
   // Auto-scroll to bottom
   useEffect(() => {
