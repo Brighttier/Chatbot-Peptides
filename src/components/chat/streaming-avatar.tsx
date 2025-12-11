@@ -93,21 +93,39 @@ export function StreamingAvatar({
 
       // Handle track subscription
       room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication) => {
-        console.log("Track subscribed:", track.kind, publication.trackSid);
+        console.log("TrackSubscribed event fired:", {
+          kind: track.kind,
+          trackSid: publication.trackSid,
+          trackKindVideo: Track.Kind.Video,
+          trackKindAudio: Track.Kind.Audio,
+          isVideo: track.kind === Track.Kind.Video,
+          isAudio: track.kind === Track.Kind.Audio,
+        });
 
         if (track.kind === Track.Kind.Video) {
-          console.log("Video track received, videoRef exists:", !!videoRef.current);
+          console.log("Video track matched! videoRef.current:", videoRef.current);
           if (videoRef.current) {
-            track.attach(videoRef.current);
-            console.log("Video attached to element, setting isStreamReady=true");
+            const attachedElements = track.attach(videoRef.current);
+            console.log("Video attach() called, returned elements:", attachedElements);
             setIsStreamReady(true);
+            console.log("isStreamReady set to true");
           } else {
-            console.warn("videoRef.current is null, cannot attach video");
+            console.error("videoRef.current is null - cannot attach video!");
+            // Try to attach after a short delay in case React hasn't rendered yet
+            setTimeout(() => {
+              console.log("Delayed check - videoRef.current:", videoRef.current);
+              if (videoRef.current) {
+                track.attach(videoRef.current);
+                setIsStreamReady(true);
+                console.log("Video attached after delay");
+              }
+            }, 500);
           }
         } else if (track.kind === Track.Kind.Audio) {
-          console.log("Audio track received, audioRef exists:", !!audioRef.current);
+          console.log("Audio track matched! audioRef.current:", audioRef.current);
           if (audioRef.current) {
             track.attach(audioRef.current);
+            console.log("Audio attached successfully");
           }
         }
       });
