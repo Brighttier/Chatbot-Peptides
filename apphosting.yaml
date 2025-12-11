@@ -37,5 +37,7 @@ env:
     secret: HEYGEN_AVATAR_ID
   - variable: HEYGEN_VOICE_ID
     secret: HEYGEN_VOICE_ID
+  - variable: HEYGEN_KNOWLEDGE_ID
+    secret: HEYGEN_KNOWLEDGE_ID
   - variable: DEFAULT_REP_PHONE_NUMBER
     secret: DEFAULT_REP_PHONE_NUMBER
