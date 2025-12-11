@@ -95,11 +95,20 @@ export function StreamingAvatar({
       room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, publication: RemoteTrackPublication) => {
         console.log("Track subscribed:", track.kind, publication.trackSid);
 
-        if (track.kind === Track.Kind.Video && videoRef.current) {
-          track.attach(videoRef.current);
-          setIsStreamReady(true);
-        } else if (track.kind === Track.Kind.Audio && audioRef.current) {
-          track.attach(audioRef.current);
+        if (track.kind === Track.Kind.Video) {
+          console.log("Video track received, videoRef exists:", !!videoRef.current);
+          if (videoRef.current) {
+            track.attach(videoRef.current);
+            console.log("Video attached to element, setting isStreamReady=true");
+            setIsStreamReady(true);
+          } else {
+            console.warn("videoRef.current is null, cannot attach video");
+          }
+        } else if (track.kind === Track.Kind.Audio) {
+          console.log("Audio track received, audioRef exists:", !!audioRef.current);
+          if (audioRef.current) {
+            track.attach(audioRef.current);
+          }
         }
       });
 
