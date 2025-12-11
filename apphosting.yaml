@@ -6,7 +6,7 @@ runConfig:
 env:
   # Public Firebase config (available at build time)
   - variable: NEXT_PUBLIC_FIREBASE_API_KEY
-    value: AIzaSyC0HXtRTWMO7Tq3u4wd-XUg91JTcDMQdJE
+    value: AIzaSyCUsD1VnibIFE5WtiJGOlXMTsz583fjef0
   - variable: NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN
     value: guardian-intelligence-platform.firebaseapp.com
   - variable: NEXT_PUBLIC_FIREBASE_PROJECT_ID
