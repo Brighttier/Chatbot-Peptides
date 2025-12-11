@@ -5,7 +5,7 @@ import { ConversationList } from "./conversation-list";
 import { ChatView } from "./chat-view";
 import { CustomerDetails } from "./customer-details";
 import type { Conversation } from "@/types";
-import { Loader2, ArrowLeft, Info } from "lucide-react";
+import { Loader2, ArrowLeft, Info, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
 
 interface ConversationWithPreview extends Conversation {
   lastMessage?: {
@@ -26,6 +26,8 @@ export function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("list");
+  const [showConversationList, setShowConversationList] = useState(true);
+  const [showCustomerDetails, setShowCustomerDetails] = useState(true);
 
   // Fetch conversations on mount
   useEffect(() => {
@@ -98,25 +100,62 @@ export function AdminDashboard() {
 
   return (
     <>
-      {/* Desktop Layout - 3 columns */}
+      {/* Desktop Layout - 3 columns with collapsible panels */}
       <div className="hidden lg:flex h-screen bg-gray-100">
-        {/* Left Column - Conversation List */}
-        <div className="w-80 shrink-0">
-          <ConversationList
-            conversations={conversations}
-            selectedId={selectedConversation?.id || null}
-            onSelect={handleSelectConversation}
-          />
+        {/* Left Column - Conversation List (collapsible) */}
+        <div
+          className={`shrink-0 transition-all duration-300 ease-in-out ${
+            showConversationList ? "w-80" : "w-0"
+          } overflow-hidden`}
+        >
+          <div className="w-80 h-full">
+            <ConversationList
+              conversations={conversations}
+              selectedId={selectedConversation?.id || null}
+              onSelect={handleSelectConversation}
+            />
+          </div>
         </div>
 
-        {/* Middle Column - Chat View */}
-        <div className="flex-1 min-w-0">
+        {/* Middle Column - Chat View with toggle buttons */}
+        <div className="flex-1 min-w-0 flex flex-col relative">
+          {/* Toggle buttons row */}
+          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between pointer-events-none">
+            <button
+              onClick={() => setShowConversationList(!showConversationList)}
+              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors pointer-events-auto border border-gray-200"
+              title={showConversationList ? "Hide conversations" : "Show conversations"}
+            >
+              {showConversationList ? (
+                <PanelLeftClose className="h-5 w-5 text-gray-600" />
+              ) : (
+                <PanelLeftOpen className="h-5 w-5 text-gray-600" />
+              )}
+            </button>
+            <button
+              onClick={() => setShowCustomerDetails(!showCustomerDetails)}
+              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors pointer-events-auto border border-gray-200"
+              title={showCustomerDetails ? "Hide customer details" : "Show customer details"}
+            >
+              {showCustomerDetails ? (
+                <PanelRightClose className="h-5 w-5 text-gray-600" />
+              ) : (
+                <PanelRightOpen className="h-5 w-5 text-gray-600" />
+              )}
+            </button>
+          </div>
           <ChatView conversation={selectedConversation} />
         </div>
 
-        {/* Right Column - Customer Details */}
-        <div className="w-80 shrink-0">
-          <CustomerDetails conversation={selectedConversation} />
+        {/* Right Column - Customer Details (collapsible) */}
+        <div
+          className={`shrink-0 transition-all duration-300 ease-in-out ${
+            showCustomerDetails ? "w-80" : "w-0"
+          } overflow-hidden`}
+        >
+          <div className="w-80 h-full">
+            <CustomerDetails conversation={selectedConversation} />
+          </div>
         </div>
       </div>
 

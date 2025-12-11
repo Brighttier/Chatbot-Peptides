@@ -89,12 +89,12 @@ export function ConversationList({
 
                   {/* Content */}
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-medium text-gray-900 text-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-gray-900 text-sm truncate">
                         {conversation.userMobileNumber}
                       </span>
                       {conversation.lastMessage && (
-                        <span className="text-xs text-gray-400">
+                        <span className="text-xs text-gray-400 whitespace-nowrap shrink-0">
                           {formatTime(conversation.lastMessage.timestamp)}
                         </span>
                       )}
