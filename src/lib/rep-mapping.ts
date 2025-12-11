@@ -6,6 +6,7 @@ import type { RepMapping } from "@/types";
 const repMapping: RepMapping = {
   // Add your rep mappings here
   // Format: "repId": "+1234567890"
+  demo: process.env.DEFAULT_REP_PHONE_NUMBER || "+10000000000", // Demo rep for testing
   default: process.env.DEFAULT_REP_PHONE_NUMBER || "+10000000000",
 };
 

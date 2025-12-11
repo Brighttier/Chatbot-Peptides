@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Timestamp } from "firebase-admin/firestore";
 import {
-  findExistingConversationAdmin,
+  findAnyConversationAdmin,
   createConversationAdmin,
   updateConversationAdmin,
 } from "@/lib/firebase-admin";
@@ -15,12 +16,19 @@ import type { InitChatRequest, InitChatResponse } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body: InitChatRequest = await request.json();
-    const { repId, userMobileNumber, userInstagramHandle } = body;
+    const { repId, userMobileNumber, userInstagramHandle, firstName, lastName, dateOfBirth, consentGiven } = body;
 
     // Validate required fields
-    if (!repId || !userMobileNumber) {
+    if (!repId || !userMobileNumber || !firstName || !lastName || !dateOfBirth) {
       return NextResponse.json(
-        { error: "Missing required fields: repId and userMobileNumber" },
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!consentGiven) {
+      return NextResponse.json(
+        { error: "Consent is required to continue" },
         { status: 400 }
       );
     }
@@ -38,13 +46,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing active conversation
-    const existingConversation = await findExistingConversationAdmin(
+    // Check for ANY existing conversation (active, archived, ended, closed)
+    // This ensures only ONE conversation thread per phone number
+    const existingConversation = await findAnyConversationAdmin(
       userMobileNumber,
       repPhoneNumber
     );
 
     if (existingConversation) {
+      // Reactivate if not already active
+      if (existingConversation.status !== "active") {
+        await updateConversationAdmin(existingConversation.id!, {
+          status: "active",
+        });
+      }
+
       const response: InitChatResponse = {
         conversationId: existingConversation.id!,
         isExisting: true,
@@ -52,13 +68,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Create new conversation (Human mode - default for standalone/Instagram)
+    // Create new conversation only if no previous conversation exists (Human mode - default for standalone/Instagram)
     const conversationData: Parameters<typeof createConversationAdmin>[0] = {
       repPhoneNumber,
       userMobileNumber,
       chatMode: "HUMAN",
       fallbackMode: false,
       status: "active",
+      customerInfo: {
+        firstName,
+        lastName,
+        dateOfBirth,
+        consentGiven: true,
+        consentTimestamp: Timestamp.now(),
+      },
     };
 
     // Only add Instagram handle if provided (Firestore doesn't allow undefined)

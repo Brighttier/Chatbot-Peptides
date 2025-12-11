@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Timestamp } from "firebase-admin/firestore";
 import {
-  findExistingConversationAdmin,
+  findAnyConversationAdmin,
   createConversationAdmin,
+  updateConversationAdmin,
   addMessageAdmin,
 } from "@/lib/firebase-admin";
 import { getRepPhoneNumber, isValidRepId } from "@/lib/rep-mapping";
@@ -10,12 +12,19 @@ import type { InitAIChatRequest, InitChatResponse } from "@/types";
 export async function POST(request: NextRequest) {
   try {
     const body: InitAIChatRequest = await request.json();
-    const { repId, userMobileNumber } = body;
+    const { repId, userMobileNumber, firstName, lastName, dateOfBirth, consentGiven } = body;
 
     // Validate required fields
-    if (!repId || !userMobileNumber) {
+    if (!repId || !userMobileNumber || !firstName || !lastName || !dateOfBirth) {
       return NextResponse.json(
-        { error: "Missing required fields: repId and userMobileNumber" },
+        { error: "Missing required fields" },
+        { status: 400 }
+      );
+    }
+
+    if (!consentGiven) {
+      return NextResponse.json(
+        { error: "Consent is required to continue" },
         { status: 400 }
       );
     }
@@ -33,13 +42,33 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check for existing active AI conversation
-    const existingConversation = await findExistingConversationAdmin(
+    // Check for ANY existing conversation (active, archived, ended, closed)
+    // This ensures only ONE conversation thread per phone number
+    const existingConversation = await findAnyConversationAdmin(
       userMobileNumber,
       repPhoneNumber
     );
 
-    if (existingConversation && existingConversation.chatMode === "AI") {
+    if (existingConversation) {
+      // Reactivate if not already active and set to AI mode
+      const needsUpdate = existingConversation.status !== "active" || existingConversation.chatMode !== "AI";
+
+      if (needsUpdate) {
+        await updateConversationAdmin(existingConversation.id!, {
+          status: "active",
+          chatMode: "AI",
+        });
+
+        // Add a welcome back message if we're reactivating
+        if (existingConversation.status !== "active") {
+          await addMessageAdmin(
+            existingConversation.id!,
+            "AI",
+            "Welcome back! How can I assist you today?"
+          );
+        }
+      }
+
       const response: InitChatResponse = {
         conversationId: existingConversation.id!,
         isExisting: true,
@@ -47,13 +76,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Create new AI conversation
+    // Create new AI conversation only if no previous conversation exists
     const conversationId = await createConversationAdmin({
       repPhoneNumber,
       userMobileNumber,
       chatMode: "AI",
       fallbackMode: false,
       status: "active",
+      customerInfo: {
+        firstName,
+        lastName,
+        dateOfBirth,
+        consentGiven: true,
+        consentTimestamp: Timestamp.now(),
+      },
     });
 
     // Add welcome message from AI

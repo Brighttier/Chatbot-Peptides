@@ -6,7 +6,7 @@ import type { Conversation, Message, MessageSender } from "@/types";
 let adminApp: App;
 let adminDb: Firestore;
 
-function getAdminApp(): App {
+export function getAdminApp(): App {
   if (!adminApp) {
     const apps = getApps();
     if (apps.length > 0) {
@@ -47,7 +47,7 @@ export function getAdminFirestore(): Firestore {
   return adminDb;
 }
 
-// Find existing conversation
+// Find existing conversation (active only)
 export async function findExistingConversationAdmin(
   userMobileNumber: string,
   repPhoneNumber: string
@@ -72,6 +72,71 @@ export async function findExistingConversationAdmin(
     id: doc.id,
     ...doc.data(),
   } as Conversation;
+}
+
+// Find ANY conversation for a phone number (regardless of status)
+// This ensures only ONE conversation thread exists per phone number
+export async function findAnyConversationAdmin(
+  userMobileNumber: string,
+  repPhoneNumber: string
+): Promise<Conversation | null> {
+  const db = getAdminFirestore();
+
+  // First check for active
+  const activeSnapshot = await db
+    .collection("conversations")
+    .where("userMobileNumber", "==", userMobileNumber)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "==", "active")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!activeSnapshot.empty) {
+    const doc = activeSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  // Then check for archived
+  const archivedSnapshot = await db
+    .collection("conversations")
+    .where("userMobileNumber", "==", userMobileNumber)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "==", "archived")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!archivedSnapshot.empty) {
+    const doc = archivedSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  // Finally check for ended/closed
+  const endedSnapshot = await db
+    .collection("conversations")
+    .where("userMobileNumber", "==", userMobileNumber)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "in", ["ended", "closed"])
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!endedSnapshot.empty) {
+    const doc = endedSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  return null;
 }
 
 // Create a new conversation
@@ -167,6 +232,33 @@ export async function findActiveConversationByRepPhoneAdmin(
     .where("userMobileNumber", "==", userPhoneNumber)
     .where("chatMode", "==", "HUMAN")
     .where("status", "==", "active")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) {
+    return null;
+  }
+
+  const doc = snapshot.docs[0];
+  return {
+    id: doc.id,
+    ...doc.data(),
+  } as Conversation;
+}
+
+// Find archived conversation (for re-opening)
+export async function findArchivedConversationAdmin(
+  userMobileNumber: string,
+  repPhoneNumber: string
+): Promise<Conversation | null> {
+  const db = getAdminFirestore();
+
+  const snapshot = await db
+    .collection("conversations")
+    .where("userMobileNumber", "==", userMobileNumber)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "==", "archived")
     .orderBy("createdAt", "desc")
     .limit(1)
     .get();

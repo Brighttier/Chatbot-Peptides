@@ -4,12 +4,30 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Bot, User, MessageSquare, Sparkles } from "lucide-react";
 
+type ChatMode = "AI" | "HUMAN";
+
 interface ModeSelectionProps {
-  onSelectHuman: () => void;
-  onSelectAI: () => void;
+  onSelectHuman?: () => void;
+  onSelectAI?: () => void;
+  onSelectMode?: (mode: ChatMode) => void;
 }
 
-export function ModeSelection({ onSelectHuman, onSelectAI }: ModeSelectionProps) {
+export function ModeSelection({ onSelectHuman, onSelectAI, onSelectMode }: ModeSelectionProps) {
+  const handleSelectAI = () => {
+    if (onSelectMode) {
+      onSelectMode("AI");
+    } else if (onSelectAI) {
+      onSelectAI();
+    }
+  };
+
+  const handleSelectHuman = () => {
+    if (onSelectMode) {
+      onSelectMode("HUMAN");
+    } else if (onSelectHuman) {
+      onSelectHuman();
+    }
+  };
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background p-4">
       <div className="w-full max-w-2xl space-y-6">
@@ -24,7 +42,7 @@ export function ModeSelection({ onSelectHuman, onSelectAI }: ModeSelectionProps)
           {/* AI Chat Option */}
           <Card
             className="p-6 cursor-pointer hover:border-primary transition-all hover:shadow-lg group"
-            onClick={onSelectAI}
+            onClick={handleSelectAI}
           >
             <div className="space-y-4 text-center">
               <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -53,7 +71,7 @@ export function ModeSelection({ onSelectHuman, onSelectAI }: ModeSelectionProps)
           {/* Human Chat Option */}
           <Card
             className="p-6 cursor-pointer hover:border-primary transition-all hover:shadow-lg group"
-            onClick={onSelectHuman}
+            onClick={handleSelectHuman}
           >
             <div className="space-y-4 text-center">
               <div className="mx-auto h-16 w-16 rounded-full bg-gradient-to-br from-accent to-accent/60 flex items-center justify-center group-hover:scale-110 transition-transform">

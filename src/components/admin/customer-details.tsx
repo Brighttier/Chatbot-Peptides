@@ -1,6 +1,6 @@
 "use client";
 
-import { Phone, Instagram, MessageCircle, Clock, Hash, User } from "lucide-react";
+import { Phone, Instagram, MessageCircle, Clock, Hash, User, Calendar, CheckCircle2, XCircle } from "lucide-react";
 import type { Conversation } from "@/types";
 import { Timestamp } from "firebase/firestore";
 
@@ -19,12 +19,27 @@ export function CustomerDetails({ conversation }: CustomerDetailsProps) {
   }
 
   const formatDate = (timestamp: Timestamp | Date | unknown) => {
-    const date =
-      timestamp instanceof Timestamp
-        ? timestamp.toDate()
-        : timestamp instanceof Date
-        ? timestamp
-        : new Date(timestamp as number);
+    let date: Date;
+
+    if (timestamp instanceof Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp && typeof timestamp === 'object' && '_seconds' in timestamp) {
+      // Handle serialized Firestore Timestamp from API
+      date = new Date((timestamp as { _seconds: number })._seconds * 1000);
+    } else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    } else {
+      return 'Unknown';
+    }
+
+    if (isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
@@ -44,14 +59,21 @@ export function CustomerDetails({ conversation }: CustomerDetailsProps) {
       {/* Details */}
       <div className="flex-1 overflow-y-auto p-4">
         <div className="space-y-6">
-          {/* Customer Avatar & Phone */}
+          {/* Customer Avatar & Name */}
           <div className="flex flex-col items-center pb-4 border-b">
             <div className="h-16 w-16 rounded-full bg-blue-100 flex items-center justify-center mb-3">
               <User className="h-8 w-8 text-blue-500" />
             </div>
             <h4 className="font-medium text-gray-900">
-              {conversation.userMobileNumber}
+              {conversation.customerInfo
+                ? `${conversation.customerInfo.firstName} ${conversation.customerInfo.lastName}`
+                : conversation.userMobileNumber}
             </h4>
+            {conversation.customerInfo && (
+              <p className="text-sm text-gray-500 mt-1">
+                {conversation.userMobileNumber}
+              </p>
+            )}
             <span
               className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-xs font-medium ${
                 conversation.status === "active"
@@ -62,6 +84,33 @@ export function CustomerDetails({ conversation }: CustomerDetailsProps) {
               {conversation.status}
             </span>
           </div>
+
+          {/* Personal Information */}
+          {conversation.customerInfo && (
+            <div className="space-y-4">
+              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Personal Information
+              </h5>
+
+              <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                    <Calendar className="h-4 w-4 text-gray-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">Date of Birth</p>
+                    <p className="text-sm font-medium text-gray-900">
+                      {new Date(conversation.customerInfo.dateOfBirth).toLocaleDateString("en-US", {
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
+                      })}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Contact Information */}
           <div className="space-y-4">
@@ -144,6 +193,40 @@ export function CustomerDetails({ conversation }: CustomerDetailsProps) {
               )}
             </div>
           </div>
+
+          {/* Consent Status */}
+          {conversation.customerInfo && (
+            <div className="space-y-4">
+              <h5 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+                Consent
+              </h5>
+
+              <div className="flex items-center gap-3">
+                <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                  conversation.customerInfo.consentGiven ? "bg-green-100" : "bg-red-100"
+                }`}>
+                  {conversation.customerInfo.consentGiven ? (
+                    <CheckCircle2 className="h-4 w-4 text-green-600" />
+                  ) : (
+                    <XCircle className="h-4 w-4 text-red-600" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500">Status</p>
+                  <p className={`text-sm font-medium ${
+                    conversation.customerInfo.consentGiven ? "text-green-700" : "text-red-700"
+                  }`}>
+                    {conversation.customerInfo.consentGiven ? "Consent Given" : "No Consent"}
+                  </p>
+                  {conversation.customerInfo.consentTimestamp && (
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {formatDate(conversation.customerInfo.consentTimestamp)}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Rep Phone */}
           <div className="space-y-4">

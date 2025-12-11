@@ -1,11 +1,18 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { ConversationList } from "./conversation-list";
 import { ChatView } from "./chat-view";
 import { CustomerDetails } from "./customer-details";
-import type { Conversation } from "@/types";
-import { Loader2, ArrowLeft, Info, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen } from "lucide-react";
+import type { Conversation, Message } from "@/types";
+import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { subscribeToMessages } from "@/lib/firebase";
+import { Timestamp } from "firebase/firestore";
+import { useAuth } from "@/contexts/auth-context";
+import Link from "next/link";
+import Image from "next/image";
 
 interface ConversationWithPreview extends Conversation {
   lastMessage?: {
@@ -17,7 +24,13 @@ interface ConversationWithPreview extends Conversation {
 
 type MobileView = "list" | "chat" | "details";
 
+// Min and max widths for resizable panels
+const MIN_PANEL_WIDTH = 250;
+const MAX_PANEL_WIDTH = 500;
+const DEFAULT_PANEL_WIDTH = 320;
+
 export function AdminDashboard() {
+  const { user, logout, hasRole } = useAuth();
   const [conversations, setConversations] = useState<ConversationWithPreview[]>(
     []
   );
@@ -28,31 +41,111 @@ export function AdminDashboard() {
   const [mobileView, setMobileView] = useState<MobileView>("list");
   const [showConversationList, setShowConversationList] = useState(true);
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  // Fetch conversations on mount
+  // Check if user can access settings (admin or super_admin only)
+  const canAccessSettings = hasRole(["super_admin", "admin"]);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } catch (error) {
+      console.error("Logout failed:", error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  // Resizable panel widths
+  const [leftPanelWidth, setLeftPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [rightPanelWidth, setRightPanelWidth] = useState(DEFAULT_PANEL_WIDTH);
+  const [isResizingLeft, setIsResizingLeft] = useState(false);
+  const [isResizingRight, setIsResizingRight] = useState(false);
+
+  // Handle left panel resize
+  const handleLeftMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingLeft(true);
+  }, []);
+
+  // Handle right panel resize
+  const handleRightMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsResizingRight(true);
+  }, []);
+
+  // Global mouse move and up handlers for resizing
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        const response = await fetch("/api/admin/conversations");
-        if (!response.ok) {
-          throw new Error("Failed to fetch conversations");
-        }
-        const data = await response.json();
-        setConversations(data.conversations);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load");
-        console.error("Error fetching conversations:", err);
-      } finally {
-        setIsLoading(false);
+    const handleMouseMove = (e: MouseEvent) => {
+      if (isResizingLeft) {
+        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, e.clientX));
+        setLeftPanelWidth(newWidth);
+      }
+      if (isResizingRight) {
+        const newWidth = Math.min(MAX_PANEL_WIDTH, Math.max(MIN_PANEL_WIDTH, window.innerWidth - e.clientX));
+        setRightPanelWidth(newWidth);
       }
     };
 
+    const handleMouseUp = () => {
+      setIsResizingLeft(false);
+      setIsResizingRight(false);
+    };
+
+    if (isResizingLeft || isResizingRight) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "col-resize";
+      document.body.style.userSelect = "none";
+    }
+
+    return () => {
+      document.removeEventListener("mousemove", handleMouseMove);
+      document.removeEventListener("mouseup", handleMouseUp);
+      document.body.style.cursor = "";
+      document.body.style.userSelect = "";
+    };
+  }, [isResizingLeft, isResizingRight]);
+
+  // Fetch conversations function
+  const fetchConversations = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/conversations");
+      if (!response.ok) {
+        throw new Error("Failed to fetch conversations");
+      }
+      const data = await response.json();
+      setConversations(data.conversations);
+
+      // Update or clear selected conversation
+      if (selectedConversation) {
+        const updated = data.conversations.find(
+          (c: ConversationWithPreview) => c.id === selectedConversation.id
+        );
+        if (updated) {
+          setSelectedConversation(updated);
+        } else {
+          // Conversation was deleted (e.g., during merge), clear selection
+          setSelectedConversation(null);
+        }
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load");
+      console.error("Error fetching conversations:", err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedConversation]);
+
+  // Fetch conversations on mount
+  useEffect(() => {
     fetchConversations();
 
     // Poll for new conversations every 10 seconds
     const interval = setInterval(fetchConversations, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [fetchConversations]);
 
   const handleSelectConversation = (conversation: ConversationWithPreview) => {
     setSelectedConversation(conversation);
@@ -100,62 +193,129 @@ export function AdminDashboard() {
 
   return (
     <>
-      {/* Desktop Layout - 3 columns with collapsible panels */}
-      <div className="hidden lg:flex h-screen bg-gray-100">
-        {/* Left Column - Conversation List (collapsible) */}
+      {/* Desktop Layout - 3 columns with collapsible and resizable panels */}
+      <div className="hidden lg:flex lg:flex-col h-screen bg-gray-100">
+        {/* Top Header Bar */}
+        <div className="bg-white border-b px-4 py-2 flex items-center justify-between shrink-0">
+          <div className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="Jon Andersen"
+              width={200}
+              height={56}
+              className="h-14 w-auto"
+              priority
+            />
+          </div>
+          <div className="flex items-center gap-3">
+            {/* User info */}
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <div className="hidden xl:block">
+                <p className="font-medium text-gray-900">{user?.name}</p>
+                <p className="text-xs text-gray-500 capitalize">{user?.role?.replace("_", " ")}</p>
+              </div>
+            </div>
+
+            {/* Settings button - only for admin/super_admin */}
+            {canAccessSettings && (
+              <Link
+                href="/admin/settings"
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Settings"
+              >
+                <Settings className="h-5 w-5" />
+              </Link>
+            )}
+
+            {/* Logout button */}
+            <button
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="p-2 rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600 transition-colors"
+              title="Logout"
+            >
+              {isLoggingOut ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <LogOut className="h-5 w-5" />
+              )}
+            </button>
+          </div>
+        </div>
+
+        {/* Main content area */}
+        <div className="flex flex-1 min-h-0">
+        {/* Left Column - Conversation List (collapsible & resizable) */}
         <div
-          className={`shrink-0 transition-all duration-300 ease-in-out ${
-            showConversationList ? "w-80" : "w-0"
-          } overflow-hidden`}
+          className={`shrink-0 transition-all ease-in-out ${
+            showConversationList ? "" : "w-0"
+          } overflow-hidden relative`}
+          style={{
+            width: showConversationList ? leftPanelWidth : 0,
+            transitionProperty: isResizingLeft ? "none" : "width",
+            transitionDuration: isResizingLeft ? "0ms" : "300ms"
+          }}
         >
-          <div className="w-80 h-full">
+          <div className="h-full" style={{ width: leftPanelWidth }}>
             <ConversationList
               conversations={conversations}
               selectedId={selectedConversation?.id || null}
               onSelect={handleSelectConversation}
+              onRefresh={fetchConversations}
             />
           </div>
         </div>
 
-        {/* Middle Column - Chat View with toggle buttons */}
-        <div className="flex-1 min-w-0 flex flex-col relative">
-          {/* Toggle buttons row */}
-          <div className="absolute top-3 left-3 right-3 z-10 flex justify-between pointer-events-none">
-            <button
-              onClick={() => setShowConversationList(!showConversationList)}
-              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors pointer-events-auto border border-gray-200"
-              title={showConversationList ? "Hide conversations" : "Show conversations"}
-            >
-              {showConversationList ? (
-                <PanelLeftClose className="h-5 w-5 text-gray-600" />
-              ) : (
-                <PanelLeftOpen className="h-5 w-5 text-gray-600" />
-              )}
-            </button>
-            <button
-              onClick={() => setShowCustomerDetails(!showCustomerDetails)}
-              className="p-2 bg-white rounded-lg shadow-md hover:bg-gray-50 transition-colors pointer-events-auto border border-gray-200"
-              title={showCustomerDetails ? "Hide customer details" : "Show customer details"}
-            >
-              {showCustomerDetails ? (
-                <PanelRightClose className="h-5 w-5 text-gray-600" />
-              ) : (
-                <PanelRightOpen className="h-5 w-5 text-gray-600" />
-              )}
-            </button>
+        {/* Left Resize Handle */}
+        {showConversationList && (
+          <div
+            className="w-1 hover:w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-all shrink-0 relative group"
+            onMouseDown={handleLeftMouseDown}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-400/20" />
           </div>
-          <ChatView conversation={selectedConversation} />
+        )}
+
+        {/* Middle Column - Chat View with toggle buttons in header */}
+        <div className="flex-1 min-w-0">
+          <ChatView
+            conversation={selectedConversation}
+            showLeftPanel={showConversationList}
+            showRightPanel={showCustomerDetails}
+            onToggleLeftPanel={() => setShowConversationList(!showConversationList)}
+            onToggleRightPanel={() => setShowCustomerDetails(!showCustomerDetails)}
+            onConversationUpdate={fetchConversations}
+          />
         </div>
 
-        {/* Right Column - Customer Details (collapsible) */}
+        {/* Right Resize Handle */}
+        {showCustomerDetails && (
+          <div
+            className="w-1 hover:w-1.5 bg-gray-200 hover:bg-blue-400 cursor-col-resize transition-all shrink-0 relative group"
+            onMouseDown={handleRightMouseDown}
+          >
+            <div className="absolute inset-y-0 -left-1 -right-1 group-hover:bg-blue-400/20" />
+          </div>
+        )}
+
+        {/* Right Column - Customer Details (collapsible & resizable) */}
         <div
-          className={`shrink-0 transition-all duration-300 ease-in-out ${
-            showCustomerDetails ? "w-80" : "w-0"
-          } overflow-hidden`}
+          className={`shrink-0 transition-all ease-in-out ${
+            showCustomerDetails ? "" : "w-0"
+          } overflow-hidden relative`}
+          style={{
+            width: showCustomerDetails ? rightPanelWidth : 0,
+            transitionProperty: isResizingRight ? "none" : "width",
+            transitionDuration: isResizingRight ? "0ms" : "300ms"
+          }}
         >
-          <div className="w-80 h-full">
+          <div className="h-full" style={{ width: rightPanelWidth }}>
             <CustomerDetails conversation={selectedConversation} />
           </div>
+        </div>
         </div>
       </div>
 
@@ -164,11 +324,48 @@ export function AdminDashboard() {
         {/* Mobile: Conversation List */}
         {mobileView === "list" && (
           <div className="flex-1 flex flex-col">
-            <ConversationList
-              conversations={conversations}
-              selectedId={selectedConversation?.id || null}
-              onSelect={handleSelectConversation}
-            />
+            {/* Mobile Header */}
+            <div className="bg-white border-b px-4 py-3 flex items-center justify-between safe-area-inset">
+              <div className="flex items-center">
+                <Image
+                  src="/logo.png"
+                  alt="Jon Andersen"
+                  width={160}
+                  height={48}
+                  className="h-12 w-auto"
+                  priority
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                {canAccessSettings && (
+                  <Link
+                    href="/admin/settings"
+                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                  >
+                    <Settings className="h-5 w-5" />
+                  </Link>
+                )}
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="p-2 rounded-lg hover:bg-red-50 text-gray-600 hover:text-red-600"
+                >
+                  {isLoggingOut ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <LogOut className="h-5 w-5" />
+                  )}
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 min-h-0">
+              <ConversationList
+                conversations={conversations}
+                selectedId={selectedConversation?.id || null}
+                onSelect={handleSelectConversation}
+                onRefresh={fetchConversations}
+              />
+            </div>
           </div>
         )}
 
@@ -238,13 +435,7 @@ export function AdminDashboard() {
 }
 
 // Mobile-optimized ChatView without header (header is handled by parent)
-import { useState as useStateChatMobile, useRef, useEffect as useEffectChatMobile, useCallback } from "react";
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Send, User, UserCircle, Bot, Loader2 as Loader2Chat, MessageSquare } from "lucide-react";
-import { subscribeToMessages } from "@/lib/firebase";
-import type { Message } from "@/types";
-import { Timestamp } from "firebase/firestore";
+// Note: Uses imports from top of file
 
 interface DisplayMessage {
   id: string;
@@ -254,9 +445,9 @@ interface DisplayMessage {
 }
 
 function ChatViewMobile({ conversation }: { conversation: Conversation | null }) {
-  const [messages, setMessages] = useStateChatMobile<DisplayMessage[]>([]);
-  const [inputValue, setInputValue] = useStateChatMobile("");
-  const [isSending, setIsSending] = useStateChatMobile(false);
+  const [messages, setMessages] = useState<DisplayMessage[]>([]);
+  const [inputValue, setInputValue] = useState("");
+  const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -275,7 +466,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
     []
   );
 
-  useEffectChatMobile(() => {
+  useEffect(() => {
     if (!conversation?.id) {
       setMessages([]);
       return;
@@ -288,7 +479,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
     return () => unsubscribe();
   }, [conversation?.id, convertMessages]);
 
-  useEffectChatMobile(() => {
+  useEffect(() => {
     if (scrollAreaRef.current) {
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
@@ -437,7 +628,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
             className="h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600 shrink-0"
           >
             {isSending ? (
-              <Loader2Chat className="h-4 w-4 animate-spin" />
+              <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />
             )}
@@ -454,8 +645,6 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
 }
 
 // Mobile-optimized CustomerDetails without header
-import { Phone, Instagram, MessageCircle, Clock, Hash } from "lucide-react";
-
 function CustomerDetailsMobile({ conversation }: { conversation: Conversation | null }) {
   if (!conversation) {
     return (
@@ -467,12 +656,27 @@ function CustomerDetailsMobile({ conversation }: { conversation: Conversation | 
   }
 
   const formatDate = (timestamp: Timestamp | Date | unknown) => {
-    const date =
-      timestamp instanceof Timestamp
-        ? timestamp.toDate()
-        : timestamp instanceof Date
-        ? timestamp
-        : new Date(timestamp as number);
+    let date: Date;
+
+    if (timestamp instanceof Timestamp) {
+      date = timestamp.toDate();
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp && typeof timestamp === 'object' && '_seconds' in timestamp) {
+      // Handle serialized Firestore Timestamp from API
+      date = new Date((timestamp as { _seconds: number })._seconds * 1000);
+    } else if (typeof timestamp === 'number') {
+      date = new Date(timestamp);
+    } else {
+      return 'Unknown';
+    }
+
+    if (isNaN(date.getTime())) {
+      return 'Unknown';
+    }
+
     return date.toLocaleDateString("en-US", {
       year: "numeric",
       month: "long",
