@@ -69,7 +69,7 @@ export function EmbedGenerator() {
     return `<!-- Peptide Chat Widget (iframe) -->
 <iframe
   src="${baseUrl}/embed/widget?repId=${selectedRepId}"
-  style="position:fixed;bottom:0;right:0;width:100%;height:100%;border:none;pointer-events:none;z-index:9999;"
+  style="position:fixed;bottom:0;right:0;width:100%;height:100%;border:none;pointer-events:auto;z-index:9999;"
   allow="microphone"
 ></iframe>`;
   }, [baseUrl, selectedRepId]);
