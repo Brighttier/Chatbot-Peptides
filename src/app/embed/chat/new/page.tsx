@@ -6,6 +6,12 @@ import { ModeSelection } from "@/components/chat/mode-selection";
 import { MobileGateway } from "@/components/chat/mobile-gateway";
 import { Loader2 } from "lucide-react";
 
+interface IntakeAnswers {
+  goals: string[];
+  stage: string;
+  interest: string[];
+}
+
 interface CustomerData {
   mobileNumber: string;
   instagramHandle?: string;
@@ -13,6 +19,7 @@ interface CustomerData {
   lastName: string;
   dateOfBirth: string;
   consentGiven: boolean;
+  intakeAnswers?: IntakeAnswers;
 }
 
 type Step = "mode-selection" | "mobile-gateway-human" | "mobile-gateway-ai";
@@ -35,6 +42,7 @@ function EmbedChatContent() {
         lastName: data.lastName,
         dateOfBirth: data.dateOfBirth,
         consentGiven: data.consentGiven,
+        intakeAnswers: data.intakeAnswers,
       }),
     });
 
@@ -58,6 +66,7 @@ function EmbedChatContent() {
         lastName: data.lastName,
         dateOfBirth: data.dateOfBirth,
         consentGiven: data.consentGiven,
+        intakeAnswers: data.intakeAnswers,
       }),
     });
 

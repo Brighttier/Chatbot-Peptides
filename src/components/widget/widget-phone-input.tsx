@@ -6,6 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Phone, Instagram, ArrowRight, Loader2, User, Calendar } from "lucide-react";
 
+export interface IntakeAnswers {
+  goals: string[];
+  stage: string;
+  interest: string[];
+}
+
 export interface CustomerData {
   mobileNumber: string;
   instagramHandle?: string;
@@ -13,6 +19,7 @@ export interface CustomerData {
   lastName: string;
   dateOfBirth: string;
   consentGiven: boolean;
+  intakeAnswers?: IntakeAnswers;
 }
 
 interface WidgetPhoneInputProps {

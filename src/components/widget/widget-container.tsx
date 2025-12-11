@@ -3,7 +3,8 @@
 import { useState, useEffect, useCallback } from "react";
 import { ChatBubble } from "./chat-bubble";
 import { WidgetModeSelection } from "./widget-mode-selection";
-import { WidgetPhoneInput, CustomerData } from "./widget-phone-input";
+import { WidgetPhoneInput, CustomerData, IntakeAnswers } from "./widget-phone-input";
+import { WidgetIntakeQuestions } from "./widget-intake-questions";
 import { WidgetLiveChat } from "./widget-live-chat";
 import { MedicalDisclaimer } from "@/components/chat/medical-disclaimer";
 import { StreamingAvatar } from "@/components/chat/streaming-avatar";
@@ -15,6 +16,7 @@ type WidgetStep =
   | "disclaimer"
   | "ai-avatar"
   | "human-phone"
+  | "human-intake"
   | "human-chat";
 
 type ChatMode = "AI" | "HUMAN";
@@ -50,6 +52,8 @@ export function WidgetContainer({
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [chatMode, setChatMode] = useState<ChatMode | null>(null);
   const [windowSize, setWindowSize] = useState({ width: 400, height: 600 });
+  const [pendingCustomerData, setPendingCustomerData] = useState<CustomerData | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isOpen = step !== "collapsed";
   const dimensions = sizeMap[size];
@@ -100,18 +104,31 @@ export function WidgetContainer({
 
   const handlePhoneSubmit = useCallback(
     async (data: CustomerData) => {
+      // Store customer data and go to intake questions
+      setPendingCustomerData(data);
+      setStep("human-intake");
+    },
+    []
+  );
+
+  const submitChat = useCallback(
+    async (intakeAnswers?: IntakeAnswers) => {
+      if (!pendingCustomerData) return;
+
+      setIsSubmitting(true);
       try {
         const response = await fetch("/api/init-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             repId,
-            userMobileNumber: data.mobileNumber,
-            userInstagramHandle: data.instagramHandle,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            dateOfBirth: data.dateOfBirth,
-            consentGiven: data.consentGiven,
+            userMobileNumber: pendingCustomerData.mobileNumber,
+            userInstagramHandle: pendingCustomerData.instagramHandle,
+            firstName: pendingCustomerData.firstName,
+            lastName: pendingCustomerData.lastName,
+            dateOfBirth: pendingCustomerData.dateOfBirth,
+            consentGiven: pendingCustomerData.consentGiven,
+            intakeAnswers,
           }),
         });
 
@@ -123,13 +140,28 @@ export function WidgetContainer({
 
         setConversationId(responseData.conversationId);
         setStep("human-chat");
+        setPendingCustomerData(null);
       } catch (error) {
         console.error("Failed to init chat:", error);
         throw error;
+      } finally {
+        setIsSubmitting(false);
       }
     },
-    [repId]
+    [repId, pendingCustomerData]
   );
+
+  const handleIntakeSubmit = useCallback(
+    (answers: IntakeAnswers) => {
+      const hasAnswers = answers.goals.length > 0 || answers.stage || answers.interest.length > 0;
+      submitChat(hasAnswers ? answers : undefined);
+    },
+    [submitChat]
+  );
+
+  const handleIntakeSkip = useCallback(() => {
+    submitChat(undefined);
+  }, [submitChat]);
 
   const handleClose = () => {
     setStep("collapsed");
@@ -141,6 +173,9 @@ export function WidgetContainer({
       setChatMode(null);
     } else if (step === "human-phone") {
       setStep("disclaimer");
+    } else if (step === "human-intake") {
+      setStep("human-phone");
+      setPendingCustomerData(null);
     } else if (step === "ai-avatar") {
       setStep("mode-selection");
       setChatMode(null);
@@ -173,6 +208,8 @@ export function WidgetContainer({
         return "Important Notice";
       case "human-phone":
         return "Connect with us";
+      case "human-intake":
+        return "Quick Questions";
       case "human-chat":
         return "Live Chat";
       default:
@@ -253,6 +290,14 @@ export function WidgetContainer({
               <WidgetPhoneInput
                 onSubmit={handlePhoneSubmit}
                 showInstagram={false}
+              />
+            )}
+
+            {step === "human-intake" && (
+              <WidgetIntakeQuestions
+                onSubmit={handleIntakeSubmit}
+                onSkip={handleIntakeSkip}
+                isLoading={isSubmitting}
               />
             )}
 
