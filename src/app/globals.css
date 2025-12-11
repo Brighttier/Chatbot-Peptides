@@ -120,3 +120,24 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Mobile safe area insets for iOS */
+.safe-area-inset {
+  padding-top: env(safe-area-inset-top);
+}
+
+.safe-area-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Prevent pull-to-refresh on mobile */
+html {
+  overscroll-behavior: none;
+}
+
+/* Mobile viewport height fix */
+@supports (height: 100dvh) {
+  .h-screen {
+    height: 100dvh;
+  }
+}
