@@ -20,6 +20,7 @@ import {
 import { Room, RoomEvent, Track, RemoteTrack, RemoteTrackPublication } from "livekit-client";
 
 interface StreamingAvatarProps {
+  conversationId?: string;
   onClose: () => void;
   welcomeMessage?: string;
 }
@@ -34,6 +35,7 @@ interface ChatMessage {
 type SessionState = "connecting" | "connected" | "error" | "ended";
 
 export function StreamingAvatar({
+  conversationId,
   onClose,
   welcomeMessage = "Hello! I'm your AI assistant. How can I help you today with peptide information?",
 }: StreamingAvatarProps) {
@@ -327,6 +329,24 @@ export function StreamingAvatar({
       if (data.aiResponse) {
         setTranscript(data.aiResponse);
         addToChatHistory("ai", data.aiResponse);
+
+        // Log messages to Firestore if conversationId is provided
+        if (conversationId) {
+          try {
+            await fetch("/api/log-ai-message", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                conversationId,
+                userMessage,
+                aiResponse: data.aiResponse,
+              }),
+            });
+          } catch (logError) {
+            console.error("Failed to log AI message:", logError);
+            // Don't fail the whole operation if logging fails
+          }
+        }
 
         // Update fallback mode state if needed
         if (data.fallbackMode && !isFallbackMode) {

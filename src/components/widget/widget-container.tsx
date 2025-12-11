@@ -14,6 +14,8 @@ type WidgetStep =
   | "collapsed"
   | "mode-selection"
   | "disclaimer"
+  | "ai-phone"
+  | "ai-intake"
   | "ai-avatar"
   | "human-phone"
   | "human-intake"
@@ -94,9 +96,9 @@ export function WidgetContainer({
   };
 
   const handleDisclaimerAccept = () => {
-    // After accepting disclaimer, go to appropriate chat
+    // After accepting disclaimer, go to phone input for both modes
     if (chatMode === "AI") {
-      setStep("ai-avatar");
+      setStep("ai-phone");
     } else {
       setStep("human-phone");
     }
@@ -109,6 +111,63 @@ export function WidgetContainer({
       setStep("human-intake");
     },
     []
+  );
+
+  // AI phone submit - store customer data and go to AI intake
+  const handleAIPhoneSubmit = useCallback(
+    async (data: CustomerData) => {
+      setPendingCustomerData(data);
+      setStep("ai-intake");
+    },
+    []
+  );
+
+  // Submit AI chat - call init-ai-chat API
+  const submitAIChat = useCallback(
+    async (intakeAnswers?: IntakeAnswers) => {
+      if (!pendingCustomerData) return;
+
+      setIsSubmitting(true);
+      try {
+        const response = await fetch("/api/init-ai-chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            repId,
+            userMobileNumber: pendingCustomerData.mobileNumber,
+            firstName: pendingCustomerData.firstName,
+            lastName: pendingCustomerData.lastName,
+            dateOfBirth: pendingCustomerData.dateOfBirth,
+            consentGiven: pendingCustomerData.consentGiven,
+            intakeAnswers,
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.error || "Failed to start AI chat");
+        }
+
+        setConversationId(responseData.conversationId);
+        setStep("ai-avatar");
+        setPendingCustomerData(null);
+      } catch (error) {
+        console.error("Failed to init AI chat:", error);
+        throw error;
+      } finally {
+        setIsSubmitting(false);
+      }
+    },
+    [repId, pendingCustomerData]
+  );
+
+  // AI intake submit handler
+  const handleAIIntakeSubmit = useCallback(
+    (answers: IntakeAnswers) => {
+      submitAIChat(answers);
+    },
+    [submitAIChat]
   );
 
   const submitChat = useCallback(
@@ -171,9 +230,13 @@ export function WidgetContainer({
     } else if (step === "human-intake") {
       setStep("human-phone");
       setPendingCustomerData(null);
+    } else if (step === "ai-phone") {
+      setStep("disclaimer");
+    } else if (step === "ai-intake") {
+      setStep("ai-phone");
+      setPendingCustomerData(null);
     } else if (step === "ai-avatar") {
-      setStep("mode-selection");
-      setChatMode(null);
+      setStep("ai-intake");
     } else if (step === "human-chat") {
       setStep("mode-selection");
       setChatMode(null);
@@ -201,6 +264,10 @@ export function WidgetContainer({
         return "Chat with us";
       case "disclaimer":
         return "Important Notice";
+      case "ai-phone":
+        return "Connect with us";
+      case "ai-intake":
+        return "Quick Questions";
       case "human-phone":
         return "Connect with us";
       case "human-intake":
@@ -274,8 +341,23 @@ export function WidgetContainer({
               <MedicalDisclaimer onAccept={handleDisclaimerAccept} />
             )}
 
-            {step === "ai-avatar" && (
+            {step === "ai-phone" && (
+              <WidgetPhoneInput
+                onSubmit={handleAIPhoneSubmit}
+                showInstagram={false}
+              />
+            )}
+
+            {step === "ai-intake" && (
+              <WidgetIntakeQuestions
+                onSubmit={handleAIIntakeSubmit}
+                isLoading={isSubmitting}
+              />
+            )}
+
+            {step === "ai-avatar" && conversationId && (
               <StreamingAvatar
+                conversationId={conversationId}
                 onClose={handleBackToModes}
                 welcomeMessage={welcomeMessage}
               />
