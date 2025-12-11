@@ -172,6 +172,26 @@ export async function createStreamingSession(): Promise<{
       return null;
     }
 
+    // Step 3: Send initial greeting to trigger avatar (helps with stream startup)
+    // Use "repeat" task type for a simple greeting that doesn't go through LLM
+    try {
+      await fetch(`${HEYGEN_API_BASE}/streaming.task`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Api-Key": HEYGEN_API_KEY,
+        },
+        body: JSON.stringify({
+          session_id: data.session_id,
+          text: "Hello! I'm your AI assistant. How can I help you today?",
+          task_type: "repeat",
+        }),
+      });
+    } catch (taskError) {
+      console.error("Failed to send initial greeting task:", taskError);
+      // Don't fail the session if greeting fails
+    }
+
     return {
       sessionId: data.session_id,
       accessToken: data.access_token,
