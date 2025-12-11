@@ -36,6 +36,7 @@ export function AdminDashboard() {
   );
   const [selectedConversation, setSelectedConversation] =
     useState<ConversationWithPreview | null>(null);
+  const selectedConversationRef = useRef<ConversationWithPreview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [mobileView, setMobileView] = useState<MobileView>("list");
@@ -108,6 +109,11 @@ export function AdminDashboard() {
     };
   }, [isResizingLeft, isResizingRight]);
 
+  // Keep ref in sync with state
+  useEffect(() => {
+    selectedConversationRef.current = selectedConversation;
+  }, [selectedConversation]);
+
   // Fetch conversations function
   const fetchConversations = useCallback(async () => {
     try {
@@ -118,10 +124,11 @@ export function AdminDashboard() {
       const data = await response.json();
       setConversations(data.conversations);
 
-      // Update or clear selected conversation
-      if (selectedConversation) {
+      // Update or clear selected conversation using ref to avoid dependency
+      const currentSelection = selectedConversationRef.current;
+      if (currentSelection) {
         const updated = data.conversations.find(
-          (c: ConversationWithPreview) => c.id === selectedConversation.id
+          (c: ConversationWithPreview) => c.id === currentSelection.id
         );
         if (updated) {
           setSelectedConversation(updated);
@@ -136,7 +143,7 @@ export function AdminDashboard() {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedConversation]);
+  }, []);
 
   // Fetch conversations on mount
   useEffect(() => {

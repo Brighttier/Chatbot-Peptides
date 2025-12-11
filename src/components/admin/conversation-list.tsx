@@ -105,9 +105,9 @@ export function ConversationList({
         return true;
       })
       .sort((a, b) => {
-        // Sort by last message timestamp (newest first)
-        const timeA = a.lastMessage?.timestamp ? new Date(a.lastMessage.timestamp).getTime() : 0;
-        const timeB = b.lastMessage?.timestamp ? new Date(b.lastMessage.timestamp).getTime() : 0;
+        // Sort by creation time (newest first) - stable sort that won't reshuffle when messages arrive
+        const timeA = a.createdAt ? new Date(a.createdAt as unknown as string).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt as unknown as string).getTime() : 0;
         return timeB - timeA;
       });
   }, [conversations, filter]);
