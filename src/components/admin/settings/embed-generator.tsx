@@ -234,7 +234,7 @@ export function EmbedGenerator() {
               <input
                 type="text"
                 readOnly
-                value={`${baseUrl}/chat/new?repId=${selectedRepId}`}
+                value={`${baseUrl}/c/${selectedRepId}`}
                 className="flex-1 px-3 py-2 bg-gray-50 border rounded-lg text-sm text-gray-600"
               />
               <Button
@@ -242,7 +242,7 @@ export function EmbedGenerator() {
                 size="sm"
                 onClick={async () => {
                   await navigator.clipboard.writeText(
-                    `${baseUrl}/chat/new?repId=${selectedRepId}`
+                    `${baseUrl}/c/${selectedRepId}`
                   );
                   setCopied(true);
                   setTimeout(() => setCopied(false), 2000);
