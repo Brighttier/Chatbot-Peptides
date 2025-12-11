@@ -15,8 +15,8 @@ type WidgetStep =
   | "mode-selection"
   | "disclaimer"
   | "ai-phone"
-  | "ai-intake"
   | "ai-avatar"
+  | "transfer-intake"
   | "human-phone"
   | "human-intake"
   | "human-chat";
@@ -113,20 +113,9 @@ export function WidgetContainer({
     []
   );
 
-  // AI phone submit - store customer data and go to AI intake
+  // AI phone submit - create AI conversation and go directly to avatar
   const handleAIPhoneSubmit = useCallback(
     async (data: CustomerData) => {
-      setPendingCustomerData(data);
-      setStep("ai-intake");
-    },
-    []
-  );
-
-  // Submit AI chat - call init-ai-chat API
-  const submitAIChat = useCallback(
-    async (intakeAnswers?: IntakeAnswers) => {
-      if (!pendingCustomerData) return;
-
       setIsSubmitting(true);
       try {
         const response = await fetch("/api/init-ai-chat", {
@@ -134,12 +123,12 @@ export function WidgetContainer({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             repId,
-            userMobileNumber: pendingCustomerData.mobileNumber,
-            firstName: pendingCustomerData.firstName,
-            lastName: pendingCustomerData.lastName,
-            dateOfBirth: pendingCustomerData.dateOfBirth,
-            consentGiven: pendingCustomerData.consentGiven,
-            intakeAnswers,
+            userMobileNumber: data.mobileNumber,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            dateOfBirth: data.dateOfBirth,
+            consentGiven: data.consentGiven,
+            // No intake answers yet - will be collected on transfer to human
           }),
         });
 
@@ -151,7 +140,6 @@ export function WidgetContainer({
 
         setConversationId(responseData.conversationId);
         setStep("ai-avatar");
-        setPendingCustomerData(null);
       } catch (error) {
         console.error("Failed to init AI chat:", error);
         throw error;
@@ -159,15 +147,45 @@ export function WidgetContainer({
         setIsSubmitting(false);
       }
     },
-    [repId, pendingCustomerData]
+    [repId]
   );
 
-  // AI intake submit handler
-  const handleAIIntakeSubmit = useCallback(
-    (answers: IntakeAnswers) => {
-      submitAIChat(answers);
+  // Handle transfer from AI to Human - show intake form
+  const handleTransferToHuman = useCallback(() => {
+    setStep("transfer-intake");
+  }, []);
+
+  // Handle transfer intake submission - update conversation and switch to human chat
+  const handleTransferIntakeSubmit = useCallback(
+    async (answers: IntakeAnswers) => {
+      if (!conversationId) return;
+
+      setIsSubmitting(true);
+      try {
+        const response = await fetch("/api/transfer-to-human", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            intakeAnswers: answers,
+          }),
+        });
+
+        const responseData = await response.json();
+
+        if (!response.ok) {
+          throw new Error(responseData.error || "Failed to transfer to human");
+        }
+
+        setStep("human-chat");
+      } catch (error) {
+        console.error("Failed to transfer to human:", error);
+        throw error;
+      } finally {
+        setIsSubmitting(false);
+      }
     },
-    [submitAIChat]
+    [conversationId]
   );
 
   const submitChat = useCallback(
@@ -232,11 +250,10 @@ export function WidgetContainer({
       setPendingCustomerData(null);
     } else if (step === "ai-phone") {
       setStep("disclaimer");
-    } else if (step === "ai-intake") {
-      setStep("ai-phone");
-      setPendingCustomerData(null);
     } else if (step === "ai-avatar") {
-      setStep("ai-intake");
+      setStep("ai-phone");
+    } else if (step === "transfer-intake") {
+      setStep("ai-avatar");
     } else if (step === "human-chat") {
       setStep("mode-selection");
       setChatMode(null);
@@ -266,8 +283,8 @@ export function WidgetContainer({
         return "Important Notice";
       case "ai-phone":
         return "Connect with us";
-      case "ai-intake":
-        return "Quick Questions";
+      case "transfer-intake":
+        return "Talk to Human";
       case "human-phone":
         return "Connect with us";
       case "human-intake":
@@ -348,18 +365,20 @@ export function WidgetContainer({
               />
             )}
 
-            {step === "ai-intake" && (
-              <WidgetIntakeQuestions
-                onSubmit={handleAIIntakeSubmit}
-                isLoading={isSubmitting}
-              />
-            )}
-
             {step === "ai-avatar" && conversationId && (
               <StreamingAvatar
                 conversationId={conversationId}
                 onClose={handleBackToModes}
+                onTransferToHuman={handleTransferToHuman}
                 welcomeMessage={welcomeMessage}
+              />
+            )}
+
+            {step === "transfer-intake" && (
+              <WidgetIntakeQuestions
+                onSubmit={handleTransferIntakeSubmit}
+                isLoading={isSubmitting}
+                transferMessage="We're connecting you to a human agent. Please answer a few quick questions while you wait."
               />
             )}
 

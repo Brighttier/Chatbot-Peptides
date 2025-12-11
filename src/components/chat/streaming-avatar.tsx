@@ -16,12 +16,14 @@ import {
   CaptionsOff,
   ChevronUp,
   ChevronDown,
+  User,
 } from "lucide-react";
 import { Room, RoomEvent, Track, RemoteTrack, RemoteTrackPublication } from "livekit-client";
 
 interface StreamingAvatarProps {
   conversationId?: string;
   onClose: () => void;
+  onTransferToHuman?: () => void;
   welcomeMessage?: string;
 }
 
@@ -37,6 +39,7 @@ type SessionState = "connecting" | "connected" | "error" | "ended";
 export function StreamingAvatar({
   conversationId,
   onClose,
+  onTransferToHuman,
   welcomeMessage = "Hello! I'm your AI assistant. How can I help you today with peptide information?",
 }: StreamingAvatarProps) {
   const [sessionState, setSessionState] = useState<SessionState>("connecting");
@@ -443,12 +446,23 @@ export function StreamingAvatar({
               <p className="text-xs text-blue-100">Online</p>
             </div>
           </div>
-          <button
-            onClick={handleEndSession}
-            className="p-2 rounded-full hover:bg-white/20 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            {onTransferToHuman && (
+              <button
+                onClick={onTransferToHuman}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors text-sm"
+              >
+                <User className="w-4 h-4" />
+                <span>Talk to Human</span>
+              </button>
+            )}
+            <button
+              onClick={handleEndSession}
+              className="p-2 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Chat Messages - Full height */}
@@ -558,12 +572,23 @@ export function StreamingAvatar({
           <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-white text-sm font-medium">AI Avatar</span>
         </div>
-        <button
-          onClick={handleEndSession}
-          className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
-        >
-          <X className="w-5 h-5" />
-        </button>
+        <div className="flex items-center gap-2">
+          {onTransferToHuman && (
+            <button
+              onClick={onTransferToHuman}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 hover:bg-blue-700 transition-colors text-white text-sm"
+            >
+              <User className="w-4 h-4" />
+              <span>Talk to Human</span>
+            </button>
+          )}
+          <button
+            onClick={handleEndSession}
+            className="p-1.5 rounded-lg hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       {/* Video Area */}

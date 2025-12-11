@@ -14,6 +14,7 @@ export interface IntakeAnswers {
 interface WidgetIntakeQuestionsProps {
   onSubmit: (answers: IntakeAnswers) => void;
   isLoading?: boolean;
+  transferMessage?: string;
 }
 
 const GOAL_OPTIONS = ["Muscle Growth", "Anti-Aging", "Recovery", "Other"];
@@ -23,6 +24,7 @@ const INTEREST_OPTIONS = ["Purchasing Peptides", "Coaching Services", "Personali
 export function WidgetIntakeQuestions({
   onSubmit,
   isLoading = false,
+  transferMessage,
 }: WidgetIntakeQuestionsProps) {
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
   const [selectedStage, setSelectedStage] = useState("");
@@ -68,7 +70,7 @@ export function WidgetIntakeQuestions({
       <div className="text-center mb-3">
         <h2 className="text-lg font-semibold text-gray-900">Quick Questions</h2>
         <p className="text-xs text-gray-500 mt-1">
-          Help us understand your needs better
+          {transferMessage || "Help us understand your needs better"}
         </p>
       </div>
 

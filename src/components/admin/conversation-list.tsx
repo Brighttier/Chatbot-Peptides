@@ -175,7 +175,7 @@ export function ConversationList({
           )}
 
           {/* Status badge */}
-          <div className="flex items-center gap-2 mt-1.5">
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
             <span
               className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
                 conversation.status === "active"
@@ -190,6 +190,13 @@ export function ConversationList({
             <span className="text-xs text-gray-400">
               {conversation.chatMode}
             </span>
+            {/* Purchase Intent badge - blinking for attention */}
+            {conversation.customerInfo?.intakeAnswers?.interest?.includes("Purchasing Peptides") && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700 animate-pulse">
+                <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                Purchase Intent
+              </span>
+            )}
           </div>
         </div>
 
