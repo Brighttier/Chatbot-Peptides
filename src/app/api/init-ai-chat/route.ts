@@ -5,8 +5,9 @@ import {
   createConversationAdmin,
   updateConversationAdmin,
   addMessageAdmin,
+  getRepByRepIdAdmin,
 } from "@/lib/firebase-admin";
-import { getRepPhoneNumber, isValidRepId } from "@/lib/rep-mapping";
+import { getRepPhoneNumber } from "@/lib/rep-mapping";
 import type { InitAIChatRequest, InitChatResponse } from "@/types";
 
 export async function POST(request: NextRequest) {
@@ -29,17 +30,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate rep ID
-    if (!isValidRepId(repId)) {
-      return NextResponse.json({ error: "Invalid rep ID" }, { status: 400 });
-    }
-
-    const repPhoneNumber = getRepPhoneNumber(repId);
-    if (!repPhoneNumber) {
-      return NextResponse.json(
-        { error: "Rep phone number not found" },
-        { status: 400 }
-      );
+    // Validate rep ID and get phone number from Firestore
+    const repData = await getRepByRepIdAdmin(repId);
+    if (!repData) {
+      // Fallback to static mapping for "demo" and "default"
+      const fallbackPhone = getRepPhoneNumber(repId);
+      if (!fallbackPhone) {
+        return NextResponse.json(
+          { error: "Invalid rep ID or rep not found" },
+          { status: 400 }
+        );
+      }
+      // Use fallback for demo/default
+      var repPhoneNumber = fallbackPhone;
+    } else {
+      var repPhoneNumber = repData.phoneNumber;
     }
 
     // Check for ANY existing conversation (active, archived, ended, closed)

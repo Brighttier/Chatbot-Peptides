@@ -297,3 +297,63 @@ export async function findConversationByTwilioSidAdmin(
     ...doc.data(),
   } as Conversation;
 }
+
+// Rep validation cache (5 minute TTL)
+const repCache = new Map<string, { user: any | null; timestamp: number }>();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get rep user data by repId from Firestore Users collection
+ * Validates that the user exists, is a rep, and is active
+ * @param repId - The rep ID to look up
+ * @returns User data including phone number, or null if not found/invalid
+ */
+export async function getRepByRepIdAdmin(
+  repId: string
+): Promise<{ phoneNumber: string; name: string } | null> {
+  // Check cache first
+  const cached = repCache.get(repId);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.user;
+  }
+
+  const db = getAdminFirestore();
+
+  try {
+    const snapshot = await db
+      .collection("users")
+      .where("repId", "==", repId)
+      .where("role", "==", "rep")
+      .where("isActive", "==", true)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      // Cache null result to avoid repeated lookups
+      repCache.set(repId, { user: null, timestamp: Date.now() });
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const userData = doc.data();
+
+    // Ensure phone number exists
+    if (!userData.phoneNumber) {
+      repCache.set(repId, { user: null, timestamp: Date.now() });
+      return null;
+    }
+
+    const result = {
+      phoneNumber: userData.phoneNumber,
+      name: userData.name || "Rep",
+    };
+
+    // Cache the result
+    repCache.set(repId, { user: result, timestamp: Date.now() });
+
+    return result;
+  } catch (error) {
+    console.error("Error fetching rep by repId:", error);
+    return null;
+  }
+}
