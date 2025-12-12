@@ -24,9 +24,9 @@ export function EmbedGenerator() {
   const [baseUrl, setBaseUrl] = useState("");
 
   useEffect(() => {
-    // Get the base URL from the current window
+    // Get the base URL from environment variable or fallback to current window origin
     if (typeof window !== "undefined") {
-      setBaseUrl(window.location.origin);
+      setBaseUrl(process.env.NEXT_PUBLIC_BASE_URL || window.location.origin);
     }
     fetchReps();
   }, []);
