@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAdminFirestore, getReadStatusForUserAdmin } from "@/lib/firebase-admin";
+import { getAdminFirestore, getReadStatusForUserAdmin, getRepByPhoneNumberAdmin } from "@/lib/firebase-admin";
 import { getSession } from "@/lib/auth-admin";
 import type { Conversation, Message, MessageSender } from "@/types";
 
@@ -10,6 +10,7 @@ export interface ConversationWithPreview extends Conversation {
     sender: MessageSender;
   };
   hasUnread?: boolean;
+  directChatRepName?: string;
 }
 
 export interface ConversationsResponse {
@@ -67,6 +68,31 @@ export async function GET(request: NextRequest) {
         lastMessage,
         hasUnread: false, // Will be computed below
       });
+    }
+
+    // Enrich direct chat conversations with rep names
+    // Direct chats have userMobileNumber starting with "instagram-"
+    const repPhoneNumbers = new Set<string>();
+    for (const conv of conversations) {
+      if (conv.userMobileNumber.startsWith("instagram-")) {
+        repPhoneNumbers.add(conv.repPhoneNumber);
+      }
+    }
+
+    // Batch lookup rep names
+    const repNameMap = new Map<string, string>();
+    for (const phone of repPhoneNumbers) {
+      const repData = await getRepByPhoneNumberAdmin(phone);
+      if (repData) {
+        repNameMap.set(phone, repData.name);
+      }
+    }
+
+    // Assign rep names to direct chat conversations
+    for (const conv of conversations) {
+      if (conv.userMobileNumber.startsWith("instagram-")) {
+        conv.directChatRepName = repNameMap.get(conv.repPhoneNumber) || undefined;
+      }
     }
 
     // Second pass: compute unread status if user is authenticated

@@ -298,6 +298,71 @@ export async function findConversationByTwilioSidAdmin(
   } as Conversation;
 }
 
+// Find ANY conversation by Instagram handle (for direct link chat)
+// Returns the most recent conversation for the given instagram + rep combination
+export async function findConversationByInstagramAdmin(
+  instagramHandle: string,
+  repPhoneNumber: string
+): Promise<Conversation | null> {
+  const db = getAdminFirestore();
+
+  // First check for active conversations
+  const activeSnapshot = await db
+    .collection("conversations")
+    .where("userInstagramHandle", "==", instagramHandle)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "==", "active")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!activeSnapshot.empty) {
+    const doc = activeSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  // Then check for archived
+  const archivedSnapshot = await db
+    .collection("conversations")
+    .where("userInstagramHandle", "==", instagramHandle)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "==", "archived")
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!archivedSnapshot.empty) {
+    const doc = archivedSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  // Finally check for ended/closed
+  const endedSnapshot = await db
+    .collection("conversations")
+    .where("userInstagramHandle", "==", instagramHandle)
+    .where("repPhoneNumber", "==", repPhoneNumber)
+    .where("status", "in", ["ended", "closed"])
+    .orderBy("createdAt", "desc")
+    .limit(1)
+    .get();
+
+  if (!endedSnapshot.empty) {
+    const doc = endedSnapshot.docs[0];
+    return {
+      id: doc.id,
+      ...doc.data(),
+    } as Conversation;
+  }
+
+  return null;
+}
+
 // Rep validation cache (5 minute TTL)
 const repCache = new Map<string, { user: any | null; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -354,6 +419,56 @@ export async function getRepByRepIdAdmin(
     return result;
   } catch (error) {
     console.error("Error fetching rep by repId:", error);
+    return null;
+  }
+}
+
+// Phone number to rep cache
+const phoneRepCache = new Map<string, { user: { name: string; repId: string } | null; timestamp: number }>();
+
+/**
+ * Get rep user data by phone number from Firestore Users collection
+ * Used to look up rep name for direct chat badge display
+ * @param phoneNumber - The phone number to look up
+ * @returns Rep data including name and repId, or null if not found
+ */
+export async function getRepByPhoneNumberAdmin(
+  phoneNumber: string
+): Promise<{ name: string; repId: string } | null> {
+  // Check cache first
+  const cached = phoneRepCache.get(phoneNumber);
+  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+    return cached.user;
+  }
+
+  const db = getAdminFirestore();
+
+  try {
+    const snapshot = await db
+      .collection("users")
+      .where("phoneNumber", "==", phoneNumber)
+      .where("role", "==", "rep")
+      .where("isActive", "==", true)
+      .limit(1)
+      .get();
+
+    if (snapshot.empty) {
+      phoneRepCache.set(phoneNumber, { user: null, timestamp: Date.now() });
+      return null;
+    }
+
+    const doc = snapshot.docs[0];
+    const userData = doc.data();
+
+    const result = {
+      name: userData.name || "Rep",
+      repId: userData.repId || "",
+    };
+
+    phoneRepCache.set(phoneNumber, { user: result, timestamp: Date.now() });
+    return result;
+  } catch (error) {
+    console.error("Error fetching rep by phone number:", error);
     return null;
   }
 }

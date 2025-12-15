@@ -55,6 +55,7 @@ export interface ConversationReadStatus {
 // Extended conversation with computed unread status (for API responses)
 export interface ConversationWithUnread extends Conversation {
   hasUnread?: boolean;
+  directChatRepName?: string; // Rep name for direct link chats (instagram-based)
   lastMessage?: {
     content: string;
     timestamp: Date;

@@ -2,16 +2,12 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
-import { MobileGateway } from "@/components/chat/mobile-gateway";
+import { SimpleGateway } from "@/components/chat/simple-gateway";
 import { Loader2 } from "lucide-react";
 
 interface CustomerData {
-  mobileNumber: string;
-  instagramHandle?: string;
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
-  consentGiven: boolean;
+  name: string;
+  instagramHandle: string;
 }
 
 function ChatNewContent() {
@@ -25,12 +21,8 @@ function ChatNewContent() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         repId,
-        userMobileNumber: data.mobileNumber,
+        userName: data.name,
         userInstagramHandle: data.instagramHandle,
-        firstName: data.firstName,
-        lastName: data.lastName,
-        dateOfBirth: data.dateOfBirth,
-        consentGiven: data.consentGiven,
       }),
     });
 
@@ -43,7 +35,7 @@ function ChatNewContent() {
     router.push(`/chat/${responseData.conversationId}`);
   };
 
-  return <MobileGateway repId={repId} onSubmit={handleSubmit} showInstagram />;
+  return <SimpleGateway repId={repId} onSubmit={handleSubmit} />;
 }
 
 export default function ChatNewPage() {
