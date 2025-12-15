@@ -40,6 +40,26 @@ export interface Conversation {
   status: ConversationStatus;
   createdAt: Timestamp;
   twilioConversationSid?: string;
+  // Unread tracking
+  lastMessageAt?: Timestamp;
+  lastMessageSender?: MessageSender;
+}
+
+// Read status tracking per user per conversation
+export interface ConversationReadStatus {
+  odaUserId: string; // The user ID who read the conversation
+  odaConversationId: string;
+  lastReadAt: Timestamp;
+}
+
+// Extended conversation with computed unread status (for API responses)
+export interface ConversationWithUnread extends Conversation {
+  hasUnread?: boolean;
+  lastMessage?: {
+    content: string;
+    timestamp: Date;
+    sender: MessageSender;
+  };
 }
 
 // Message document structure (Firestore subcollection)

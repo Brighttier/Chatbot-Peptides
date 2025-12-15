@@ -1,6 +1,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore, Timestamp } from "firebase-admin/firestore";
-import type { Conversation, Message, MessageSender } from "@/types";
+import type { Conversation, Message, MessageSender, ConversationReadStatus } from "@/types";
 
 // Initialize Firebase Admin (for server-side operations)
 let adminApp: App;
@@ -356,4 +356,81 @@ export async function getRepByRepIdAdmin(
     console.error("Error fetching rep by repId:", error);
     return null;
   }
+}
+
+// ==========================================
+// Read Status Functions (for notification bell)
+// ==========================================
+
+/**
+ * Mark a conversation as read for a specific user
+ * Stores/updates the lastReadAt timestamp in readStatus subcollection
+ */
+export async function markConversationAsReadAdmin(
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  const db = getAdminFirestore();
+
+  await db
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("readStatus")
+    .doc(userId)
+    .set({
+      odaUserId: userId,
+      odaConversationId: conversationId,
+      lastReadAt: Timestamp.now(),
+    });
+}
+
+/**
+ * Get read status for a user across multiple conversations
+ * Returns a map of conversationId -> lastReadAt timestamp
+ */
+export async function getReadStatusForUserAdmin(
+  userId: string,
+  conversationIds: string[]
+): Promise<Map<string, Date>> {
+  if (conversationIds.length === 0) {
+    return new Map();
+  }
+
+  const db = getAdminFirestore();
+  const readStatusMap = new Map<string, Date>();
+
+  // Batch fetch read status for all conversations
+  const promises = conversationIds.map(async (convId) => {
+    const docRef = await db
+      .collection("conversations")
+      .doc(convId)
+      .collection("readStatus")
+      .doc(userId)
+      .get();
+
+    if (docRef.exists) {
+      const data = docRef.data() as ConversationReadStatus;
+      if (data.lastReadAt) {
+        readStatusMap.set(convId, data.lastReadAt.toDate());
+      }
+    }
+  });
+
+  await Promise.all(promises);
+  return readStatusMap;
+}
+
+/**
+ * Update lastMessageAt and lastMessageSender when a new message is added
+ */
+export async function updateConversationLastMessageAdmin(
+  conversationId: string,
+  sender: MessageSender
+): Promise<void> {
+  const db = getAdminFirestore();
+
+  await db.collection("conversations").doc(conversationId).update({
+    lastMessageAt: Timestamp.now(),
+    lastMessageSender: sender,
+  });
 }

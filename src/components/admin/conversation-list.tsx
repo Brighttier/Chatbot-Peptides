@@ -3,14 +3,15 @@
 import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { MessageSquare, User, Archive, Inbox, Merge, Loader2 } from "lucide-react";
-import type { Conversation } from "@/types";
+import type { Conversation, MessageSender } from "@/types";
 
 interface ConversationWithPreview extends Conversation {
   lastMessage?: {
     content: string;
     timestamp: Date;
-    sender: string;
+    sender: MessageSender;
   };
+  hasUnread?: boolean;
 }
 
 interface ConversationListProps {
@@ -200,10 +201,12 @@ export function ConversationList({
           </div>
         </div>
 
-        {/* Active indicator */}
-        {conversation.status === "active" && (
+        {/* Unread indicator - shows blue dot for unread messages */}
+        {conversation.hasUnread ? (
+          <div className="h-2.5 w-2.5 rounded-full bg-blue-500 mt-2 shrink-0 animate-pulse" />
+        ) : conversation.status === "active" ? (
           <div className="h-2 w-2 rounded-full bg-green-500 mt-2 shrink-0" />
-        )}
+        ) : null}
       </div>
     </button>
   );

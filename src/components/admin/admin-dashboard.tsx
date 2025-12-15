@@ -4,7 +4,8 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { ConversationList } from "./conversation-list";
 import { ChatView } from "./chat-view";
 import { CustomerDetails } from "./customer-details";
-import type { Conversation, Message } from "@/types";
+import { NotificationBell } from "./notification-bell";
+import type { Conversation, Message, MessageSender } from "@/types";
 import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -18,8 +19,9 @@ interface ConversationWithPreview extends Conversation {
   lastMessage?: {
     content: string;
     timestamp: Date;
-    sender: string;
+    sender: MessageSender;
   };
+  hasUnread?: boolean;
 }
 
 type MobileView = "list" | "chat" | "details";
@@ -43,6 +45,7 @@ export function AdminDashboard() {
   const [showConversationList, setShowConversationList] = useState(true);
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   // Check if user can access settings (admin or super_admin only)
   const canAccessSettings = hasRole(["super_admin", "admin"]);
@@ -123,6 +126,7 @@ export function AdminDashboard() {
       }
       const data = await response.json();
       setConversations(data.conversations);
+      setUnreadCount(data.unreadCount || 0);
 
       // Update or clear selected conversation using ref to avoid dependency
       const currentSelection = selectedConversationRef.current;
@@ -154,9 +158,37 @@ export function AdminDashboard() {
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
-  const handleSelectConversation = (conversation: ConversationWithPreview) => {
+  const handleSelectConversation = async (conversation: ConversationWithPreview) => {
     setSelectedConversation(conversation);
     setMobileView("chat");
+
+    // Mark conversation as read if it has unread messages
+    if (conversation.hasUnread && conversation.id) {
+      try {
+        await fetch("/api/admin/mark-read", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ conversationId: conversation.id }),
+        });
+        // Update local state to reflect read status
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === conversation.id ? { ...c, hasUnread: false } : c
+          )
+        );
+        setUnreadCount((prev) => Math.max(0, prev - 1));
+      } catch (err) {
+        console.error("Error marking conversation as read:", err);
+      }
+    }
+  };
+
+  // Handle clicking a conversation from the notification bell
+  const handleNotificationClick = (conversationId: string) => {
+    const conversation = conversations.find((c) => c.id === conversationId);
+    if (conversation) {
+      handleSelectConversation(conversation);
+    }
   };
 
   const handleBackToList = () => {
@@ -215,6 +247,20 @@ export function AdminDashboard() {
             />
           </div>
           <div className="flex items-center gap-3">
+            {/* Notification Bell */}
+            <NotificationBell
+              unreadCount={unreadCount}
+              unreadConversations={conversations
+                .filter((c) => c.hasUnread)
+                .map((c) => ({
+                  id: c.id!,
+                  userMobileNumber: c.userMobileNumber,
+                  lastMessage: c.lastMessage,
+                  customerInfo: c.customerInfo,
+                }))}
+              onConversationClick={handleNotificationClick}
+            />
+
             {/* User info */}
             <div className="flex items-center gap-2 text-sm text-gray-600">
               <div className="h-8 w-8 rounded-full bg-blue-100 flex items-center justify-center">
@@ -344,6 +390,19 @@ export function AdminDashboard() {
                 />
               </div>
               <div className="flex items-center gap-2">
+                {/* Notification Bell - Mobile */}
+                <NotificationBell
+                  unreadCount={unreadCount}
+                  unreadConversations={conversations
+                    .filter((c) => c.hasUnread)
+                    .map((c) => ({
+                      id: c.id!,
+                      userMobileNumber: c.userMobileNumber,
+                      lastMessage: c.lastMessage,
+                      customerInfo: c.customerInfo,
+                    }))}
+                  onConversationClick={handleNotificationClick}
+                />
                 {canAccessSettings && (
                   <Link
                     href="/admin/settings"

@@ -1,17 +1,28 @@
-import { NextResponse } from "next/server";
-import { getAdminFirestore } from "@/lib/firebase-admin";
-import type { Conversation, Message } from "@/types";
+import { NextRequest, NextResponse } from "next/server";
+import { getAdminFirestore, getReadStatusForUserAdmin } from "@/lib/firebase-admin";
+import { getSession } from "@/lib/auth-admin";
+import type { Conversation, Message, MessageSender } from "@/types";
 
 export interface ConversationWithPreview extends Conversation {
   lastMessage?: {
     content: string;
     timestamp: Date;
-    sender: string;
+    sender: MessageSender;
   };
+  hasUnread?: boolean;
 }
 
-export async function GET() {
+export interface ConversationsResponse {
+  conversations: ConversationWithPreview[];
+  unreadCount: number;
+}
+
+export async function GET(request: NextRequest) {
   try {
+    // Get the authenticated user for unread tracking
+    const session = await getSession();
+    const userId = session?.uid;
+
     const db = getAdminFirestore();
 
     // Get all conversations ordered by createdAt
@@ -21,8 +32,11 @@ export async function GET() {
       .get();
 
     const conversations: ConversationWithPreview[] = [];
+    const conversationIds: string[] = [];
 
+    // First pass: collect data and IDs
     for (const doc of conversationsSnapshot.docs) {
+      conversationIds.push(doc.id);
       const conversationData = {
         id: doc.id,
         ...doc.data(),
@@ -51,10 +65,35 @@ export async function GET() {
       conversations.push({
         ...conversationData,
         lastMessage,
+        hasUnread: false, // Will be computed below
       });
     }
 
-    return NextResponse.json({ conversations });
+    // Second pass: compute unread status if user is authenticated
+    let unreadCount = 0;
+    if (userId && conversationIds.length > 0) {
+      const readStatusMap = await getReadStatusForUserAdmin(userId, conversationIds);
+
+      for (const conv of conversations) {
+        if (conv.id && conv.lastMessage) {
+          const lastReadAt = readStatusMap.get(conv.id);
+          const lastMessageTime = conv.lastMessage.timestamp;
+          const lastMessageSender = conv.lastMessage.sender;
+
+          // Only count as unread if:
+          // 1. Never read OR last message is after last read
+          // 2. Last message is from USER (customer), not ADMIN or AI
+          if (lastMessageSender === "USER") {
+            if (!lastReadAt || lastMessageTime > lastReadAt) {
+              conv.hasUnread = true;
+              unreadCount++;
+            }
+          }
+        }
+      }
+    }
+
+    return NextResponse.json({ conversations, unreadCount } as ConversationsResponse);
   } catch (error) {
     console.error("Error fetching conversations:", error);
     return NextResponse.json(
