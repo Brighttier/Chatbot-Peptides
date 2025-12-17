@@ -12,7 +12,7 @@ export default function LoginPage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-blue-600 shadow-lg">
             <MessageSquare className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Peptide Chat</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Protocol Chat</h1>
           <p className="mt-1 text-gray-500">Admin Dashboard</p>
         </div>
 

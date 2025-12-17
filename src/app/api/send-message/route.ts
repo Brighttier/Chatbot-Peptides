@@ -4,9 +4,15 @@ import {
   addMessageAdmin,
   updateConversationAdmin,
   getMessagesAdmin,
+  updateConversationSaleInfoAdmin,
 } from "@/lib/firebase-admin";
 import { forwardMessageToRep, sendConversationMessage } from "@/lib/twilio";
 import { generateAIResponse, generateTextOnlyResponse } from "@/lib/heygen";
+import {
+  detectSaleKeywords,
+  shouldFlagAsPotentialSale,
+} from "@/lib/sale-detection";
+import { Timestamp } from "firebase-admin/firestore";
 import type { SendMessageRequest, SendMessageResponse } from "@/types";
 
 const FALLBACK_MESSAGE =
@@ -43,6 +49,23 @@ export async function POST(request: NextRequest) {
 
     // Save user message
     const messageId = await addMessageAdmin(conversationId, "USER", content);
+
+    // Check for sale-related keywords in the message
+    const keywordResult = detectSaleKeywords(content);
+    if (keywordResult.found && shouldFlagAsPotentialSale(keywordResult)) {
+      try {
+        const currentCount = conversation.saleKeywordsCount || 0;
+        await updateConversationSaleInfoAdmin(conversationId, {
+          hasPotentialSale: true,
+          saleStatus: conversation.saleStatus || "potential",
+          lastSaleKeywordAt: Timestamp.now(),
+          saleKeywordsCount: currentCount + keywordResult.keywords.length,
+        });
+      } catch (saleError) {
+        // Don't fail the message if sale tracking fails
+        console.error("Failed to update sale tracking:", saleError);
+      }
+    }
 
     // Handle based on chat mode
     if (conversation.chatMode === "HUMAN") {

@@ -3,10 +3,13 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2 } from "lucide-react";
+import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2, DollarSign } from "lucide-react";
 import { subscribeToMessages } from "@/lib/firebase";
 import type { Message, Conversation } from "@/types";
 import { Timestamp } from "firebase/firestore";
+import { MarkSaleDialog } from "./sales/mark-sale-dialog";
+import { determineChannel } from "@/lib/sale-detection";
+import { useAuth } from "@/contexts/auth-context";
 
 interface ChatViewProps {
   conversation: Conversation | null;
@@ -42,11 +45,15 @@ export function ChatView({
   onToggleRightPanel,
   onConversationUpdate,
 }: ChatViewProps) {
+  const { hasRole } = useAuth();
+  const isSuperAdmin = hasRole(["super_admin"]);
+
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [isArchiving, setIsArchiving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showMarkSaleDialog, setShowMarkSaleDialog] = useState(false);
   const [showCannedResponses, setShowCannedResponses] = useState(false);
   const [cannedSearchQuery, setCannedSearchQuery] = useState("");
   const [selectedCannedIndex, setSelectedCannedIndex] = useState(0);
@@ -421,8 +428,31 @@ export function ChatView({
             </div>
           </div>
 
-          {/* Right buttons - Archive and toggle */}
+          {/* Right buttons - Sale, Archive and toggle */}
           <div className="flex items-center gap-2">
+            {/* Mark Sale button */}
+            <button
+              onClick={() => setShowMarkSaleDialog(true)}
+              className={`p-2 rounded-lg transition-colors ${
+                conversation.saleStatus === "marked" || conversation.saleStatus === "verified"
+                  ? "bg-green-50 text-green-600"
+                  : conversation.hasPotentialSale
+                  ? "bg-amber-50 hover:bg-amber-100 text-amber-600 animate-pulse"
+                  : "hover:bg-green-50 text-gray-500 hover:text-green-600"
+              }`}
+              title={
+                conversation.saleStatus === "verified"
+                  ? "Sale verified"
+                  : conversation.saleStatus === "marked"
+                  ? "Sale marked - pending review"
+                  : conversation.hasPotentialSale
+                  ? "Potential sale detected - click to mark"
+                  : "Mark as sale"
+              }
+            >
+              <DollarSign className="h-5 w-5" />
+            </button>
+
             {/* Archive button */}
             <button
               onClick={handleArchive}
@@ -657,6 +687,23 @@ export function ChatView({
           </p>
         )}
       </div>
+
+      {/* Mark Sale Dialog */}
+      <MarkSaleDialog
+        isOpen={showMarkSaleDialog}
+        onClose={() => setShowMarkSaleDialog(false)}
+        conversationId={conversation.id || ""}
+        customerName={
+          conversation.customerInfo?.firstName
+            ? `${conversation.customerInfo.firstName} ${conversation.customerInfo.lastName || ""}`
+            : conversation.userMobileNumber
+        }
+        channel={determineChannel(conversation.userMobileNumber)}
+        isSuperAdmin={isSuperAdmin}
+        onSuccess={() => {
+          onConversationUpdate?.();
+        }}
+      />
     </div>
   );
 }

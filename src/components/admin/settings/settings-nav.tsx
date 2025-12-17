@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Plug, Palette, Code, MessageSquareText } from "lucide-react";
+import { Users, Plug, Palette, Code, MessageSquareText, DollarSign } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 interface NavItem {
@@ -13,6 +13,12 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
+  {
+    href: "/admin/settings/commissions",
+    label: "Commissions",
+    icon: <DollarSign className="h-4 w-4" />,
+    superAdminOnly: true,
+  },
   {
     href: "/admin/settings/users",
     label: "Users",

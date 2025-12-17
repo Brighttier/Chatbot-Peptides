@@ -1,6 +1,17 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore, Timestamp } from "firebase-admin/firestore";
-import type { Conversation, Message, MessageSender, ConversationReadStatus } from "@/types";
+import type {
+  Conversation,
+  Message,
+  MessageSender,
+  ConversationReadStatus,
+  Sale,
+  SaleEvidence,
+  SaleAuditLog,
+  SaleStatus,
+  SaleChannel,
+  CommissionSummary,
+} from "@/types";
 
 // Initialize Firebase Admin (for server-side operations)
 let adminApp: App;
@@ -548,4 +559,328 @@ export async function updateConversationLastMessageAdmin(
     lastMessageAt: Timestamp.now(),
     lastMessageSender: sender,
   });
+}
+
+// ==========================================
+// Sales & Commission Tracking Functions
+// ==========================================
+
+/**
+ * Create a new sale record
+ */
+export async function createSaleAdmin(
+  sale: Omit<Sale, "id" | "createdAt" | "updatedAt">
+): Promise<string> {
+  const db = getAdminFirestore();
+
+  const saleData = {
+    ...sale,
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  };
+
+  const docRef = await db.collection("sales").add(saleData);
+  return docRef.id;
+}
+
+/**
+ * Get a sale by ID
+ */
+export async function getSaleByIdAdmin(saleId: string): Promise<Sale | null> {
+  const db = getAdminFirestore();
+
+  const doc = await db.collection("sales").doc(saleId).get();
+
+  if (!doc.exists) return null;
+
+  return {
+    id: doc.id,
+    ...doc.data(),
+  } as Sale;
+}
+
+/**
+ * Get sale by conversation ID
+ */
+export async function getSaleByConversationIdAdmin(
+  conversationId: string
+): Promise<Sale | null> {
+  const db = getAdminFirestore();
+
+  const snapshot = await db
+    .collection("sales")
+    .where("conversationId", "==", conversationId)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) return null;
+
+  const doc = snapshot.docs[0];
+  return {
+    id: doc.id,
+    ...doc.data(),
+  } as Sale;
+}
+
+/**
+ * Update a sale record
+ */
+export async function updateSaleAdmin(
+  saleId: string,
+  updates: Partial<Sale>
+): Promise<void> {
+  const db = getAdminFirestore();
+
+  await db
+    .collection("sales")
+    .doc(saleId)
+    .update({
+      ...updates,
+      updatedAt: Timestamp.now(),
+    });
+}
+
+/**
+ * List sales with filters
+ * Note: Filters in memory to avoid composite index requirements
+ */
+export async function listSalesAdmin(options: {
+  startDate?: Date;
+  endDate?: Date;
+  channel?: SaleChannel;
+  status?: SaleStatus;
+  repPhoneNumber?: string;
+  limit?: number;
+  offset?: number;
+}): Promise<{ sales: Sale[]; total: number }> {
+  const db = getAdminFirestore();
+
+  // Get all sales and filter in memory to avoid composite index
+  const snapshot = await db.collection("sales").get();
+
+  let sales: Sale[] = [];
+
+  for (const doc of snapshot.docs) {
+    const saleData = doc.data() as Sale;
+
+    // Skip if no createdAt
+    if (!saleData.createdAt?.toDate) continue;
+
+    // Apply filters in memory
+    if (options.channel && saleData.channel !== options.channel) continue;
+    if (options.status && saleData.status !== options.status) continue;
+    if (options.repPhoneNumber && saleData.repInfo?.phoneNumber !== options.repPhoneNumber) continue;
+
+    const saleDate = saleData.createdAt.toDate();
+    if (options.startDate && saleDate < options.startDate) continue;
+    if (options.endDate && saleDate > options.endDate) continue;
+
+    sales.push({
+      id: doc.id,
+      ...saleData,
+    });
+  }
+
+  // Sort by createdAt descending
+  sales.sort((a, b) => {
+    const dateA = a.createdAt?.toDate?.() || new Date(0);
+    const dateB = b.createdAt?.toDate?.() || new Date(0);
+    return dateB.getTime() - dateA.getTime();
+  });
+
+  const total = sales.length;
+
+  // Apply pagination
+  if (options.offset) {
+    sales = sales.slice(options.offset);
+  }
+  if (options.limit) {
+    sales = sales.slice(0, options.limit);
+  }
+
+  return { sales, total };
+}
+
+/**
+ * Get commission summary for a date range
+ * Note: Uses simple query without composite index to avoid index requirements
+ */
+export async function getCommissionSummaryAdmin(
+  startDate: Date,
+  endDate: Date
+): Promise<CommissionSummary> {
+  const db = getAdminFirestore();
+
+  // Simple query - get all sales and filter in memory to avoid composite index
+  const snapshot = await db.collection("sales").get();
+
+  const summary: CommissionSummary = {
+    totalSales: 0,
+    totalSaleAmount: 0,
+    totalCommission: 0,
+    websiteSales: { count: 0, amount: 0, commission: 0 },
+    instagramSales: { count: 0, amount: 0, commission: 0 },
+    pendingReviewCount: 0,
+    verifiedCount: 0,
+    disputedCount: 0,
+    period: { start: startDate, end: endDate },
+  };
+
+  for (const doc of snapshot.docs) {
+    const sale = doc.data() as Sale;
+
+    // Skip if no createdAt
+    if (!sale.createdAt?.toDate) continue;
+
+    const saleDate = sale.createdAt.toDate();
+
+    // Filter by date range
+    if (saleDate < startDate || saleDate > endDate) continue;
+
+    // Only count verified and pending_review for totals
+    if (sale.status === "verified" || sale.status === "pending_review") {
+      summary.totalSales++;
+      summary.totalSaleAmount += sale.saleAmount || 0;
+      summary.totalCommission += sale.commissionAmount || 0;
+
+      if (sale.channel === "website") {
+        summary.websiteSales.count++;
+        summary.websiteSales.amount += sale.saleAmount || 0;
+        summary.websiteSales.commission += sale.commissionAmount || 0;
+      } else {
+        summary.instagramSales.count++;
+        summary.instagramSales.amount += sale.saleAmount || 0;
+        summary.instagramSales.commission += sale.commissionAmount || 0;
+      }
+    }
+
+    // Count by status
+    if (sale.status === "pending_review") summary.pendingReviewCount++;
+    if (sale.status === "verified") summary.verifiedCount++;
+    if (sale.status === "disputed") summary.disputedCount++;
+  }
+
+  return summary;
+}
+
+/**
+ * Create sale evidence record
+ */
+export async function createSaleEvidenceAdmin(
+  evidence: Omit<SaleEvidence, "id" | "createdAt">
+): Promise<string> {
+  const db = getAdminFirestore();
+
+  const evidenceData = {
+    ...evidence,
+    createdAt: Timestamp.now(),
+  };
+
+  const docRef = await db.collection("sale_evidence").add(evidenceData);
+  return docRef.id;
+}
+
+/**
+ * Get sale evidence by sale ID
+ */
+export async function getSaleEvidenceAdmin(
+  saleId: string
+): Promise<SaleEvidence | null> {
+  const db = getAdminFirestore();
+
+  const snapshot = await db
+    .collection("sale_evidence")
+    .where("saleId", "==", saleId)
+    .limit(1)
+    .get();
+
+  if (snapshot.empty) return null;
+
+  const doc = snapshot.docs[0];
+  return {
+    id: doc.id,
+    ...doc.data(),
+  } as SaleEvidence;
+}
+
+/**
+ * Create sale audit log entry
+ */
+export async function createSaleAuditLogAdmin(
+  log: Omit<SaleAuditLog, "id" | "timestamp">
+): Promise<string> {
+  const db = getAdminFirestore();
+
+  const logData = {
+    ...log,
+    timestamp: Timestamp.now(),
+  };
+
+  const docRef = await db.collection("sale_audit_logs").add(logData);
+  return docRef.id;
+}
+
+/**
+ * Get audit logs for a sale
+ */
+export async function getSaleAuditLogsAdmin(
+  saleId: string
+): Promise<SaleAuditLog[]> {
+  const db = getAdminFirestore();
+
+  const snapshot = await db
+    .collection("sale_audit_logs")
+    .where("saleId", "==", saleId)
+    .orderBy("timestamp", "desc")
+    .get();
+
+  return snapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      }) as SaleAuditLog
+  );
+}
+
+/**
+ * Update conversation with sale tracking info
+ */
+export async function updateConversationSaleInfoAdmin(
+  conversationId: string,
+  saleInfo: {
+    hasPotentialSale?: boolean;
+    saleStatus?: "potential" | "marked" | "verified" | null;
+    saleId?: string;
+    lastSaleKeywordAt?: FirebaseFirestore.Timestamp;
+    saleKeywordsCount?: number;
+  }
+): Promise<void> {
+  const db = getAdminFirestore();
+
+  await db.collection("conversations").doc(conversationId).update(saleInfo);
+}
+
+/**
+ * Get all messages for a conversation (for evidence capture)
+ */
+export async function getConversationMessagesAdmin(
+  conversationId: string
+): Promise<Message[]> {
+  const db = getAdminFirestore();
+
+  const snapshot = await db
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .orderBy("timestamp", "asc")
+    .get();
+
+  return snapshot.docs.map(
+    (doc) =>
+      ({
+        id: doc.id,
+        ...doc.data(),
+      }) as Message
+  );
 }

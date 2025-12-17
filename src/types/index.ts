@@ -43,6 +43,12 @@ export interface Conversation {
   // Unread tracking
   lastMessageAt?: Timestamp;
   lastMessageSender?: MessageSender;
+  // Sale tracking
+  hasPotentialSale?: boolean;
+  saleStatus?: "potential" | "marked" | "verified" | null;
+  saleId?: string;
+  lastSaleKeywordAt?: Timestamp;
+  saleKeywordsCount?: number;
 }
 
 // Read status tracking per user per conversation
@@ -229,7 +235,11 @@ export type AuditAction =
   | "user_updated"
   | "user_deleted"
   | "widget_updated"
-  | "integration_updated";
+  | "integration_updated"
+  | "sale_created"
+  | "sale_verified"
+  | "sale_disputed"
+  | "sale_rejected";
 
 export interface AuditLog {
   id?: string;
@@ -247,4 +257,123 @@ export interface AuditLog {
     description: string;
   };
   ipAddress?: string;
+}
+
+// ==========================================
+// Sales & Commission Tracking Types
+// ==========================================
+
+export type SaleChannel = "website" | "instagram";
+export type SaleStatus = "verified" | "pending_review" | "disputed" | "rejected";
+export type SaleDetectionMethod = "manual" | "keyword" | "ai";
+
+export interface Sale {
+  id?: string;
+  conversationId: string;
+  customerName: string;
+  customerPhone: string;
+  customerInstagram?: string;
+  channel: SaleChannel;
+  commissionRate: number; // 0.10 for website, 0.05 for instagram
+  saleAmount: number;
+  commissionAmount: number; // Calculated: saleAmount * commissionRate
+  productDetails?: string;
+  status: SaleStatus;
+  detectionMethod: SaleDetectionMethod;
+  detectedKeywords?: string[];
+  aiConfidenceScore?: number; // 0-1
+  markedBy?: {
+    uid: string;
+    name: string;
+    role: UserRole;
+  };
+  repInfo: {
+    uid?: string;
+    name: string;
+    repId?: string;
+    phoneNumber: string;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  saleDate: Timestamp | any; // Accepts both client and admin Timestamp
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createdAt: Timestamp | any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  updatedAt: Timestamp | any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  verifiedAt?: Timestamp | any;
+  verifiedBy?: {
+    uid: string;
+    name: string;
+  };
+  notes?: string;
+}
+
+export interface SaleEvidence {
+  id?: string;
+  saleId: string;
+  conversationId: string;
+  messageIds: string[];
+  transcriptSnapshot: {
+    sender: MessageSender;
+    content: string;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    timestamp: Timestamp | any;
+  }[];
+  keywordsFound: {
+    keyword: string;
+    messageId: string;
+    context: string; // Surrounding text for context
+  }[];
+  uploadedProof?: string[]; // Firebase Storage URLs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  createdAt: Timestamp | any;
+}
+
+export interface SaleAuditLog {
+  id?: string;
+  saleId: string;
+  action: "created" | "verified" | "disputed" | "amount_changed" | "rejected";
+  performedBy: {
+    uid: string;
+    name: string;
+    email: string;
+    role: UserRole;
+  };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  timestamp: Timestamp | any;
+  previousValue?: Record<string, unknown>;
+  newValue?: Record<string, unknown>;
+  reason?: string;
+}
+
+export interface CommissionSummary {
+  totalSales: number;
+  totalSaleAmount: number;
+  totalCommission: number;
+  websiteSales: {
+    count: number;
+    amount: number;
+    commission: number;
+  };
+  instagramSales: {
+    count: number;
+    amount: number;
+    commission: number;
+  };
+  pendingReviewCount: number;
+  verifiedCount: number;
+  disputedCount: number;
+  period: {
+    start: Date;
+    end: Date;
+  };
+}
+
+// Extend Conversation for sale tracking
+export interface ConversationSaleInfo {
+  hasPotentialSale?: boolean;
+  saleStatus?: "potential" | "marked" | "verified" | null;
+  saleId?: string;
+  lastSaleKeywordAt?: Timestamp;
+  saleKeywordsCount?: number;
 }
