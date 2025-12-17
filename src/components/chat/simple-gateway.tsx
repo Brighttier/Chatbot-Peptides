@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -69,11 +70,24 @@ export function SimpleGateway({
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background p-4">
       <Card className="w-full max-w-md p-6 space-y-5">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Start a Conversation</h1>
-          <p className="text-muted-foreground text-sm">
-            Enter your details to connect with us
-          </p>
+        <div className="text-center space-y-4">
+          {/* Logo */}
+          <div className="flex justify-center">
+            <Image
+              src="/logo.png"
+              alt="Logo"
+              width={120}
+              height={120}
+              className="object-contain"
+              priority
+            />
+          </div>
+          <div className="space-y-2">
+            <h1 className="text-2xl font-bold">Start a Conversation</h1>
+            <p className="text-muted-foreground text-sm">
+              Enter your details to connect with us
+            </p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
