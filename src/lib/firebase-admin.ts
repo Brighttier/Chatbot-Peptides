@@ -311,67 +311,60 @@ export async function findConversationByTwilioSidAdmin(
 
 // Find ANY conversation by Instagram handle (for direct link chat)
 // Returns the most recent conversation for the given instagram + rep combination
+// Note: Uses simple query without composite index to avoid index requirements
 export async function findConversationByInstagramAdmin(
   instagramHandle: string,
   repPhoneNumber: string
 ): Promise<Conversation | null> {
   const db = getAdminFirestore();
 
-  // First check for active conversations
-  const activeSnapshot = await db
+  // Simple query - get all conversations for this instagram handle and filter in memory
+  const snapshot = await db
     .collection("conversations")
     .where("userInstagramHandle", "==", instagramHandle)
-    .where("repPhoneNumber", "==", repPhoneNumber)
-    .where("status", "==", "active")
-    .orderBy("createdAt", "desc")
-    .limit(1)
     .get();
 
-  if (!activeSnapshot.empty) {
-    const doc = activeSnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as Conversation;
+  if (snapshot.empty) {
+    return null;
   }
 
-  // Then check for archived
-  const archivedSnapshot = await db
-    .collection("conversations")
-    .where("userInstagramHandle", "==", instagramHandle)
-    .where("repPhoneNumber", "==", repPhoneNumber)
-    .where("status", "==", "archived")
-    .orderBy("createdAt", "desc")
-    .limit(1)
-    .get();
-
-  if (!archivedSnapshot.empty) {
-    const doc = archivedSnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as Conversation;
+  // Filter by repPhoneNumber and sort by createdAt in memory
+  const conversations: Conversation[] = [];
+  for (const doc of snapshot.docs) {
+    const data = doc.data();
+    if (data.repPhoneNumber === repPhoneNumber) {
+      conversations.push({
+        id: doc.id,
+        ...data,
+      } as Conversation);
+    }
   }
 
-  // Finally check for ended/closed
-  const endedSnapshot = await db
-    .collection("conversations")
-    .where("userInstagramHandle", "==", instagramHandle)
-    .where("repPhoneNumber", "==", repPhoneNumber)
-    .where("status", "in", ["ended", "closed"])
-    .orderBy("createdAt", "desc")
-    .limit(1)
-    .get();
-
-  if (!endedSnapshot.empty) {
-    const doc = endedSnapshot.docs[0];
-    return {
-      id: doc.id,
-      ...doc.data(),
-    } as Conversation;
+  if (conversations.length === 0) {
+    return null;
   }
 
-  return null;
+  // Sort by createdAt descending
+  conversations.sort((a, b) => {
+    const aTime = a.createdAt?.toDate?.() || new Date(0);
+    const bTime = b.createdAt?.toDate?.() || new Date(0);
+    return bTime.getTime() - aTime.getTime();
+  });
+
+  // Prioritize by status: active > archived > ended/closed
+  const activeConv = conversations.find((c) => c.status === "active");
+  if (activeConv) return activeConv;
+
+  const archivedConv = conversations.find((c) => c.status === "archived");
+  if (archivedConv) return archivedConv;
+
+  const endedConv = conversations.find(
+    (c) => c.status === "ended" || c.status === "closed"
+  );
+  if (endedConv) return endedConv;
+
+  // Return the most recent if none match the expected statuses
+  return conversations[0];
 }
 
 // Rep validation cache (5 minute TTL)
