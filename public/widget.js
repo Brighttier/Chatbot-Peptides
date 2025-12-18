@@ -10,7 +10,7 @@
   window.PeptideChatLoaded = true;
 
   // Size constants
-  var BUBBLE_SIZE = 80;
+  var BUBBLE_SIZE = 100; // Increased to accommodate pulse animation
   var EXPANDED_WIDTH = 420;
   var EXPANDED_HEIGHT = 650;
 
