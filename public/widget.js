@@ -45,21 +45,22 @@
 
   // Initialize the widget
   function initWidget() {
-    // Create iframe container
+    // Create iframe container - positioned in corner, not full screen
     var container = document.createElement("div");
     container.id = "peptide-chat-widget";
     container.style.cssText =
-      "position:fixed;bottom:0;right:0;width:100%;height:100%;pointer-events:none;z-index:" +
+      "position:fixed;bottom:16px;" +
+      (config.position === "bottom-left" ? "left:16px;" : "right:16px;") +
+      "width:420px;height:650px;max-width:calc(100vw - 32px);max-height:calc(100vh - 100px);" +
+      "pointer-events:none;z-index:" +
       config.zIndex +
       ";";
 
-    // Create iframe
+    // Create iframe - fills the container
     var iframe = document.createElement("iframe");
     iframe.id = "peptide-chat-iframe";
     iframe.src = getWidgetUrl();
     iframe.style.cssText =
-      "position:absolute;bottom:0;" +
-      (config.position === "bottom-left" ? "left:0;" : "right:0;") +
       "width:100%;height:100%;border:none;background:transparent;pointer-events:auto;";
     iframe.setAttribute("allow", "microphone");
     iframe.setAttribute("title", "Peptide Chat Widget");
