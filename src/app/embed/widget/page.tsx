@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useLayoutEffect } from "react";
 import { WidgetContainer } from "@/components/widget/widget-container";
 import { Loader2 } from "lucide-react";
 
@@ -27,6 +27,16 @@ function WidgetContent() {
   const [settings, setSettings] = useState<WidgetSettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Set transparent background on body for iframe embedding
+  useLayoutEffect(() => {
+    document.documentElement.style.background = "transparent";
+    document.body.style.background = "transparent";
+    return () => {
+      document.documentElement.style.background = "";
+      document.body.style.background = "";
+    };
+  }, []);
+
   useEffect(() => {
     async function fetchSettings() {
       try {
@@ -47,7 +57,7 @@ function WidgetContent() {
 
   if (isLoading) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center">
+      <div className="fixed inset-0 flex items-center justify-center bg-transparent">
         <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
       </div>
     );
@@ -71,7 +81,7 @@ export default function WidgetPage() {
   return (
     <Suspense
       fallback={
-        <div className="fixed inset-0 flex items-center justify-center">
+        <div className="fixed inset-0 flex items-center justify-center bg-transparent">
           <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
         </div>
       }

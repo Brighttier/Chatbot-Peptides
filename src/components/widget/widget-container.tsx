@@ -80,6 +80,16 @@ export function WidgetContainer({
     }
   }, [autoExpand, expandDelay, step]);
 
+  // Notify parent window of state changes (for embedded widget)
+  useEffect(() => {
+    if (typeof window !== "undefined" && window.parent !== window) {
+      window.parent.postMessage(
+        { type: "peptide-chat-state", isOpen },
+        "*"
+      );
+    }
+  }, [isOpen]);
+
   const handleBubbleClick = () => {
     if (isOpen) {
       setStep("collapsed");

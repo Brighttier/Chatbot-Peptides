@@ -9,6 +9,11 @@
   if (window.PeptideChatLoaded) return;
   window.PeptideChatLoaded = true;
 
+  // Size constants
+  var BUBBLE_SIZE = 80;
+  var EXPANDED_WIDTH = 420;
+  var EXPANDED_HEIGHT = 650;
+
   // Default configuration
   var config = {
     repId: "default",
@@ -45,16 +50,15 @@
 
   // Initialize the widget
   function initWidget() {
-    // Create iframe container - positioned in corner, not full screen
+    // Create iframe container - starts collapsed (bubble size only)
     var container = document.createElement("div");
     container.id = "peptide-chat-widget";
     container.style.cssText =
       "position:fixed;bottom:16px;" +
       (config.position === "bottom-left" ? "left:16px;" : "right:16px;") +
-      "width:420px;height:650px;max-width:calc(100vw - 32px);max-height:calc(100vh - 100px);" +
-      "pointer-events:none;z-index:" +
-      config.zIndex +
-      ";";
+      "width:" + BUBBLE_SIZE + "px;height:" + BUBBLE_SIZE + "px;" +
+      "pointer-events:none;z-index:" + config.zIndex + ";" +
+      "transition:width 0.3s ease,height 0.3s ease;";
 
     // Create iframe - fills the container
     var iframe = document.createElement("iframe");
@@ -102,6 +106,23 @@
     if (!data || typeof data !== "object") return;
 
     switch (data.type) {
+      case "peptide-chat-state":
+        // Resize container based on widget state
+        var container = document.getElementById("peptide-chat-widget");
+        if (container) {
+          if (data.isOpen) {
+            // Expanded state - full chat size
+            var maxWidth = Math.min(EXPANDED_WIDTH, window.innerWidth - 32);
+            var maxHeight = Math.min(EXPANDED_HEIGHT, window.innerHeight - 100);
+            container.style.width = maxWidth + "px";
+            container.style.height = maxHeight + "px";
+          } else {
+            // Collapsed state - bubble only
+            container.style.width = BUBBLE_SIZE + "px";
+            container.style.height = BUBBLE_SIZE + "px";
+          }
+        }
+        break;
       case "peptide-chat-resize":
         // Handle resize if needed
         break;
