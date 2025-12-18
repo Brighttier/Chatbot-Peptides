@@ -14,22 +14,23 @@ import {
 import { getRepPhoneNumber } from "@/lib/rep-mapping";
 import type { InitChatResponse } from "@/types";
 
-// Simplified request for direct link chat (name + instagram only)
+// Request for direct link chat (name + phone + instagram)
 interface DirectLinkChatRequest {
   repId: string;
   userName: string;
+  userMobileNumber: string;
   userInstagramHandle: string;
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body: DirectLinkChatRequest = await request.json();
-    const { repId, userName, userInstagramHandle } = body;
+    const { repId, userName, userMobileNumber, userInstagramHandle } = body;
 
     // Validate required fields
-    if (!repId || !userName || !userInstagramHandle) {
+    if (!repId || !userName || !userMobileNumber || !userInstagramHandle) {
       return NextResponse.json(
-        { error: "Missing required fields: repId, userName, and userInstagramHandle are required" },
+        { error: "Missing required fields: repId, userName, userMobileNumber, and userInstagramHandle are required" },
         { status: 400 }
       );
     }
@@ -73,14 +74,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // Create a placeholder "mobile number" using Instagram handle for Twilio compatibility
-    // Format: instagram-handle (without @) as identifier
-    const placeholderMobile = `instagram-${userInstagramHandle.replace("@", "")}`;
-
     // Create new conversation (Human mode - default for standalone/Instagram)
+    // Mark as instagram-sourced for commission tracking by prefixing with "instagram-"
+    const instagramSourcedMobile = `instagram-${userMobileNumber}`;
+
     const conversationData: Parameters<typeof createConversationAdmin>[0] = {
       repPhoneNumber,
-      userMobileNumber: placeholderMobile, // Use instagram-based identifier
+      userMobileNumber: instagramSourcedMobile, // Prefix with instagram- for channel tracking
       userInstagramHandle,
       chatMode: "HUMAN",
       fallbackMode: false,

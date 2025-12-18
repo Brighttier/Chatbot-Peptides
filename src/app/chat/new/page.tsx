@@ -7,6 +7,7 @@ import { Loader2 } from "lucide-react";
 
 interface CustomerData {
   name: string;
+  phoneNumber: string;
   instagramHandle: string;
 }
 
@@ -22,6 +23,7 @@ function ChatNewContent() {
       body: JSON.stringify({
         repId,
         userName: data.name,
+        userMobileNumber: data.phoneNumber,
         userInstagramHandle: data.instagramHandle,
       }),
     });

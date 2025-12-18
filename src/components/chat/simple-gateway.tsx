@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Instagram, Loader2, User } from "lucide-react";
+import { Instagram, Loader2, User, Phone } from "lucide-react";
 
 interface SimpleCustomerData {
   name: string;
+  phoneNumber: string;
   instagramHandle: string;
 }
 
@@ -19,19 +20,36 @@ interface SimpleGatewayProps {
 }
 
 /**
- * Simplified gateway for direct link chat
- * Only collects Name + Instagram Handle
+ * Gateway for direct link chat
+ * Collects Name + Phone Number + Instagram Handle (all mandatory)
  */
 export function SimpleGateway({
   onSubmit,
 }: SimpleGatewayProps) {
   const [name, setName] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
+  // Format phone number to E.164 format
+  const formatPhoneNumber = (phone: string): string => {
+    const cleaned = phone.replace(/\D/g, "");
+    if (cleaned.startsWith("1") && cleaned.length === 11) {
+      return `+${cleaned}`;
+    }
+    if (cleaned.length === 10) {
+      return `+1${cleaned}`;
+    }
+    return `+${cleaned}`;
+  };
+
   const validateForm = (): string | null => {
     if (!name.trim()) return "Please enter your name";
+    if (!phoneNumber.trim()) return "Please enter your phone number";
+    // Basic phone validation - at least 10 digits
+    const cleanedPhone = phoneNumber.replace(/\D/g, "");
+    if (cleanedPhone.length < 10) return "Please enter a valid phone number";
     if (!instagramHandle.trim()) return "Please enter your Instagram handle";
     return null;
   };
@@ -57,6 +75,7 @@ export function SimpleGateway({
 
       await onSubmit({
         name: name.trim(),
+        phoneNumber: formatPhoneNumber(phoneNumber),
         instagramHandle: cleanHandle,
       });
     } catch (err) {
@@ -105,6 +124,22 @@ export function SimpleGateway({
               onChange={(e) => { setName(e.target.value); setError(""); }}
               required
               autoFocus
+            />
+          </div>
+
+          {/* Phone Number Field */}
+          <div className="space-y-1.5">
+            <Label htmlFor="phone" className="text-sm flex items-center gap-1.5">
+              <Phone className="h-3.5 w-3.5" />
+              Phone Number
+            </Label>
+            <Input
+              id="phone"
+              type="tel"
+              placeholder="(555) 123-4567"
+              value={phoneNumber}
+              onChange={(e) => { setPhoneNumber(e.target.value); setError(""); }}
+              required
             />
           </div>
 
