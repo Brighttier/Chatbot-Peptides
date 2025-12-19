@@ -204,13 +204,13 @@ export function WidgetContainer({
 
       setIsSubmitting(true);
       try {
-        const response = await fetch("/api/init-chat", {
+        // Use widget-specific API endpoint (doesn't require Instagram)
+        const response = await fetch("/api/widget/init-chat", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             repId,
             userMobileNumber: pendingCustomerData.mobileNumber,
-            userInstagramHandle: pendingCustomerData.instagramHandle,
             firstName: pendingCustomerData.firstName,
             lastName: pendingCustomerData.lastName,
             dateOfBirth: pendingCustomerData.dateOfBirth,
