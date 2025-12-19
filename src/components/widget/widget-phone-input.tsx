@@ -40,34 +40,51 @@ export function WidgetPhoneInput({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  const formatPhoneNumber = (value: string): string => {
-    const digits = value.replace(/\D/g, "");
-
-    if (digits.length <= 3) {
-      return digits;
-    } else if (digits.length <= 6) {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
-    } else {
-      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
-    }
-  };
-
+  // Handle phone input - allow international format
   const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const formatted = formatPhoneNumber(e.target.value);
-    setMobileNumber(formatted);
+    let value = e.target.value;
+    // Allow + at start, then only digits, spaces, hyphens, parentheses
+    value = value.replace(/[^\d\s\-\(\)\+]/g, "");
+    // Ensure + is only at the start
+    if (value.includes("+") && !value.startsWith("+")) {
+      value = value.replace(/\+/g, "");
+    }
+    setMobileNumber(value);
     setError("");
   };
 
   const validatePhone = (phone: string): boolean => {
-    const digits = phone.replace(/\D/g, "");
-    return digits.length === 10;
+    // Remove all non-digit characters except +
+    const cleaned = phone.replace(/[^\d\+]/g, "");
+    // Must have at least 7 digits (minimum for valid phone)
+    const digits = cleaned.replace(/\+/g, "");
+    return digits.length >= 7 && digits.length <= 15;
+  };
+
+  // Format phone to E.164 format for storage
+  const formatToE164 = (phone: string): string => {
+    const cleaned = phone.replace(/[^\d\+]/g, "");
+    // If already starts with +, use as-is
+    if (cleaned.startsWith("+")) {
+      return cleaned;
+    }
+    // If 10 digits, assume US and add +1
+    if (cleaned.length === 10) {
+      return `+1${cleaned}`;
+    }
+    // If 11 digits starting with 1, assume US
+    if (cleaned.length === 11 && cleaned.startsWith("1")) {
+      return `+${cleaned}`;
+    }
+    // Otherwise add + prefix
+    return `+${cleaned}`;
   };
 
   const validateForm = (): string | null => {
     if (!firstName.trim()) return "Please enter your first name";
     if (!lastName.trim()) return "Please enter your last name";
     if (!dateOfBirth) return "Please enter your date of birth";
-    if (!validatePhone(mobileNumber)) return "Please enter a valid 10-digit phone number";
+    if (!validatePhone(mobileNumber)) return "Please enter a valid phone number (include country code for international)";
     if (!consentGiven) return "Please agree to the terms to continue";
     return null;
   };
@@ -85,7 +102,7 @@ export function WidgetPhoneInput({
     setError("");
 
     try {
-      const e164Number = "+1" + mobileNumber.replace(/\D/g, "");
+      const e164Number = formatToE164(mobileNumber);
       await onSubmit({
         mobileNumber: e164Number,
         instagramHandle: instagramHandle || undefined,
@@ -171,12 +188,13 @@ export function WidgetPhoneInput({
             <Input
               id="mobile"
               type="tel"
-              placeholder="(555) 555-5555"
+              placeholder="+1 555 555 5555"
               value={mobileNumber}
               onChange={handlePhoneChange}
               className="h-9 text-sm"
               required
             />
+            <p className="text-[10px] text-gray-400">Include country code for international (e.g., +44, +91)</p>
           </div>
 
           {/* Instagram (optional) */}
