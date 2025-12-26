@@ -213,17 +213,17 @@ export function ConversationList({
                 Potential Sale
               </span>
             )}
-            {/* Sale Marked badge - shows when sale has been marked */}
+            {/* Sold badge - shows when sale has been marked */}
             {conversation.saleId && conversation.saleStatus === "marked" && (
               <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                 <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Sale Pending
+                Sold
               </span>
             )}
             {conversation.saleId && conversation.saleStatus === "verified" && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-                Sale Verified
+              <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                Sold (Verified)
               </span>
             )}
           </div>

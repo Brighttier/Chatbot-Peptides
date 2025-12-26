@@ -19,12 +19,24 @@ export async function GET(request: NextRequest) {
 
     // Default to current month if no dates provided
     const now = new Date();
-    const startDate = startDateStr
-      ? new Date(startDateStr)
-      : new Date(now.getFullYear(), now.getMonth(), 1); // First day of current month
-    const endDate = endDateStr
-      ? new Date(endDateStr)
-      : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59); // Last day of current month
+    let startDate: Date;
+    let endDate: Date;
+
+    if (startDateStr) {
+      // Parse as local date (YYYY-MM-DD) to avoid timezone issues
+      const [year, month, day] = startDateStr.split("-").map(Number);
+      startDate = new Date(year, month - 1, day, 0, 0, 0);
+    } else {
+      startDate = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    }
+
+    if (endDateStr) {
+      // Parse as local date and set to end of day
+      const [year, month, day] = endDateStr.split("-").map(Number);
+      endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+    } else {
+      endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
 
     const summary = await getCommissionSummaryAdmin(startDate, endDate);
 

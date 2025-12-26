@@ -41,16 +41,30 @@ export async function GET(request: NextRequest) {
 
   try {
     const { searchParams } = new URL(request.url);
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
+    const startDateStr = searchParams.get("startDate");
+    const endDateStr = searchParams.get("endDate");
     const channel = searchParams.get("channel") as SaleChannel | null;
     const status = searchParams.get("status") as SaleStatus | null;
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
+    // Parse dates properly to avoid timezone issues
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (startDateStr) {
+      const [year, month, day] = startDateStr.split("-").map(Number);
+      startDate = new Date(year, month - 1, day, 0, 0, 0);
+    }
+
+    if (endDateStr) {
+      const [year, month, day] = endDateStr.split("-").map(Number);
+      endDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+
     const { sales, total } = await listSalesAdmin({
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+      startDate,
+      endDate,
       channel: channel || undefined,
       status: status || undefined,
       limit,

@@ -443,9 +443,9 @@ export function ChatView({
               }`}
               title={
                 conversation.saleStatus === "verified"
-                  ? "Sale verified"
+                  ? "Sold (verified)"
                   : conversation.saleStatus === "marked"
-                  ? "Sale marked - pending review"
+                  ? "Sold"
                   : conversation.hasPotentialSale
                   ? "Potential sale detected - click to mark"
                   : "Mark as sale"
