@@ -9,7 +9,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireRole(["super_admin", "admin"]);
+    const authResult = await requireRole(["super_admin", "admin", "rep"]);
 
     if ("error" in authResult) {
       return NextResponse.json(
@@ -92,7 +92,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const authResult = await requireRole(["super_admin", "admin"]);
+    const authResult = await requireRole(["super_admin", "admin", "rep"]);
 
     if ("error" in authResult) {
       return NextResponse.json(

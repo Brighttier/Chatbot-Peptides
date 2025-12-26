@@ -39,7 +39,7 @@ export async function GET() {
 // POST - Create a new canned response
 export async function POST(request: Request) {
   try {
-    const authResult = await requireRole(["super_admin", "admin"]);
+    const authResult = await requireRole(["super_admin", "admin", "rep"]);
 
     if ("error" in authResult) {
       return NextResponse.json(
