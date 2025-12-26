@@ -15,8 +15,8 @@ export default function SettingsLayout({
   const { user, isLoading, hasRole } = useAuth();
   const router = useRouter();
 
-  // Only admin and super_admin can access settings
-  const canAccess = hasRole(["super_admin", "admin"]);
+  // All roles can access settings (reps only see canned responses)
+  const canAccess = hasRole(["super_admin", "admin", "rep"]);
 
   useEffect(() => {
     if (!isLoading && !canAccess) {
