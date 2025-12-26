@@ -410,7 +410,7 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
  */
 export async function getRepByRepIdAdmin(
   repId: string
-): Promise<{ phoneNumber: string; name: string } | null> {
+): Promise<{ phoneNumber: string; name: string; email?: string } | null> {
   // Check cache first
   const cached = repCache.get(repId);
   if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
@@ -446,6 +446,7 @@ export async function getRepByRepIdAdmin(
     const result = {
       phoneNumber: userData.phoneNumber,
       name: userData.name || "Rep",
+      email: userData.email || undefined,
     };
 
     // Cache the result

@@ -12,6 +12,7 @@ import {
   addChatParticipant,
 } from "@/lib/twilio";
 import { getRepPhoneNumber } from "@/lib/rep-mapping";
+import { sendNewChatNotification } from "@/lib/email-notifications";
 import type { InitChatResponse } from "@/types";
 
 // Request for direct link chat (name + phone + instagram)
@@ -127,6 +128,23 @@ export async function POST(request: NextRequest) {
     } catch (twilioError) {
       console.error("Failed to create Twilio Conversation:", twilioError);
       // Don't fail the request if Twilio setup fails - fallback to basic mode
+    }
+
+    // Send email notification to rep (only for new conversations)
+    if (repData?.email) {
+      try {
+        await sendNewChatNotification({
+          repEmail: repData.email,
+          repName: repData.name,
+          customerName: userName,
+          customerPhone: userMobileNumber,
+          conversationId,
+          chatMode: "HUMAN",
+        });
+      } catch (emailErr) {
+        console.error("Failed to send new chat notification:", emailErr);
+        // Don't fail the request if email fails
+      }
     }
 
     const response: InitChatResponse = {
