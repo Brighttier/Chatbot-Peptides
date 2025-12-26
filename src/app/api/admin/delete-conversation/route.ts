@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
+import { requireRole } from "@/lib/auth-admin";
 
 // Delete a conversation and all its messages
+// Only super_admin and admin can delete conversations (reps can only archive)
 export async function POST(request: NextRequest) {
   try {
+    // Check authorization - only super_admin and admin can delete
+    const authResult = await requireRole(["super_admin", "admin"]);
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
     const { conversationId } = await request.json();
 
     if (!conversationId) {
@@ -54,8 +65,18 @@ export async function POST(request: NextRequest) {
 }
 
 // Delete multiple conversations at once
+// Only super_admin and admin can delete conversations
 export async function DELETE(request: NextRequest) {
   try {
+    // Check authorization - only super_admin and admin can delete
+    const authResult = await requireRole(["super_admin", "admin"]);
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
     const { conversationIds } = await request.json();
 
     if (!conversationIds || !Array.isArray(conversationIds) || conversationIds.length === 0) {

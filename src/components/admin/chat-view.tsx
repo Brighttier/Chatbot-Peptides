@@ -47,6 +47,7 @@ export function ChatView({
 }: ChatViewProps) {
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole(["super_admin"]);
+  const canDelete = hasRole(["super_admin", "admin"]); // Only admin and super_admin can delete
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -473,19 +474,21 @@ export function ChatView({
               )}
             </button>
 
-            {/* Delete button */}
-            <button
-              onClick={handleDelete}
-              disabled={isDeleting}
-              className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
-              title="Delete conversation"
-            >
-              {isDeleting ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <Trash2 className="h-5 w-5" />
-              )}
-            </button>
+            {/* Delete button - only for admin and super_admin */}
+            {canDelete && (
+              <button
+                onClick={handleDelete}
+                disabled={isDeleting}
+                className="p-2 rounded-lg hover:bg-red-50 text-gray-500 hover:text-red-600 transition-colors"
+                title="Delete conversation"
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Trash2 className="h-5 w-5" />
+                )}
+              </button>
+            )}
 
             {/* Right toggle button */}
             {onToggleRightPanel && (
