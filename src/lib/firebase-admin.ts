@@ -17,6 +17,37 @@ import type {
 let adminApp: App;
 let adminDb: Firestore;
 
+/**
+ * Helper function to safely convert Firestore Timestamp to Date
+ * Handles various timestamp formats from Firestore
+ */
+function safeTimestampToDate(timestamp: unknown): Date | null {
+  if (!timestamp) return null;
+
+  try {
+    // Handle Firestore Timestamp with toDate method
+    if (timestamp && typeof (timestamp as { toDate?: () => Date }).toDate === 'function') {
+      return (timestamp as { toDate: () => Date }).toDate();
+    }
+
+    // Handle native Date
+    if (timestamp instanceof Date) {
+      return timestamp;
+    }
+
+    // Handle plain object with seconds (serialized Timestamp)
+    const ts = timestamp as { _seconds?: number; seconds?: number };
+    const seconds = ts._seconds || ts.seconds;
+    if (seconds) {
+      return new Date(seconds * 1000);
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
 export function getAdminApp(): App {
   if (!adminApp) {
     const apps = getApps();
@@ -656,15 +687,14 @@ export async function listSalesAdmin(options: {
   for (const doc of snapshot.docs) {
     const saleData = doc.data() as Sale;
 
-    // Skip if no createdAt
-    if (!saleData.createdAt?.toDate) continue;
+    // Get the date - handle Firestore Timestamp
+    const saleDate = safeTimestampToDate(saleData.createdAt);
+    if (!saleDate) continue;
 
     // Apply filters in memory
     if (options.channel && saleData.channel !== options.channel) continue;
     if (options.status && saleData.status !== options.status) continue;
     if (options.repPhoneNumber && saleData.repInfo?.phoneNumber !== options.repPhoneNumber) continue;
-
-    const saleDate = saleData.createdAt.toDate();
     if (options.startDate && saleDate < options.startDate) continue;
     if (options.endDate && saleDate > options.endDate) continue;
 
@@ -676,8 +706,8 @@ export async function listSalesAdmin(options: {
 
   // Sort by createdAt descending
   sales.sort((a, b) => {
-    const dateA = a.createdAt?.toDate?.() || new Date(0);
-    const dateB = b.createdAt?.toDate?.() || new Date(0);
+    const dateA = safeTimestampToDate(a.createdAt) || new Date(0);
+    const dateB = safeTimestampToDate(b.createdAt) || new Date(0);
     return dateB.getTime() - dateA.getTime();
   });
 
@@ -722,10 +752,9 @@ export async function getCommissionSummaryAdmin(
   for (const doc of snapshot.docs) {
     const sale = doc.data() as Sale;
 
-    // Skip if no createdAt
-    if (!sale.createdAt?.toDate) continue;
-
-    const saleDate = sale.createdAt.toDate();
+    // Get the date - handle Firestore Timestamp
+    const saleDate = safeTimestampToDate(sale.createdAt);
+    if (!saleDate) continue;
 
     // Filter by date range
     if (saleDate < startDate || saleDate > endDate) continue;

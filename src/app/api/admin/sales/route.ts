@@ -126,12 +126,12 @@ export async function POST(request: NextRequest) {
         ? `${conversation.customerInfo.firstName} ${conversation.customerInfo.lastName}`
         : conversation.customerInfo?.firstName || "Unknown Customer";
 
-    // Create sale record
+    // Create sale record - filter out undefined values for Firestore
     const saleData: Omit<Sale, "id" | "createdAt" | "updatedAt"> = {
       conversationId,
       customerName,
       customerPhone: conversation.userMobileNumber,
-      customerInstagram: conversation.userInstagramHandle,
+      ...(conversation.userInstagramHandle && { customerInstagram: conversation.userInstagramHandle }),
       channel,
       commissionRate,
       saleAmount,
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
       saleDate: saleDate
         ? Timestamp.fromDate(new Date(saleDate))
         : Timestamp.now(),
-      notes,
+      ...(notes && { notes }),
     };
 
     const saleId = await createSaleAdmin(saleData);
