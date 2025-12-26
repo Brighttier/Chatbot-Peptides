@@ -21,10 +21,24 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status") as SaleStatus | null;
     const includeEvidence = searchParams.get("includeEvidence") === "true";
 
+    // Parse dates properly to avoid timezone issues
+    let parsedStartDate: Date | undefined;
+    let parsedEndDate: Date | undefined;
+
+    if (startDate) {
+      const [year, month, day] = startDate.split("-").map(Number);
+      parsedStartDate = new Date(year, month - 1, day, 0, 0, 0);
+    }
+
+    if (endDate) {
+      const [year, month, day] = endDate.split("-").map(Number);
+      parsedEndDate = new Date(year, month - 1, day, 23, 59, 59, 999);
+    }
+
     // Get all sales (no pagination for export)
     const { sales } = await listSalesAdmin({
-      startDate: startDate ? new Date(startDate) : undefined,
-      endDate: endDate ? new Date(endDate) : undefined,
+      startDate: parsedStartDate,
+      endDate: parsedEndDate,
       channel: channel || undefined,
       status: status || undefined,
       limit: 10000, // High limit for export
@@ -49,6 +63,9 @@ export async function GET(request: NextRequest) {
       "Notes",
       "Verified By",
       "Verified At",
+      "Disputed By",
+      "Disputed At",
+      "Dispute Reason",
       "Conversation ID",
     ];
 
@@ -78,6 +95,9 @@ export async function GET(request: NextRequest) {
         (sale.notes || "").replace(/,/g, ";"),
         sale.verifiedBy?.name || "",
         sale.verifiedAt?.toDate?.()?.toISOString() || "",
+        sale.disputedBy?.name || "",
+        sale.disputedAt?.toDate?.()?.toISOString() || "",
+        (sale.disputeReason || "").replace(/,/g, ";"), // Escape commas
         sale.conversationId,
       ];
 

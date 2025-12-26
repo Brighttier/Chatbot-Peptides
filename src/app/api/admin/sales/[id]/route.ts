@@ -107,6 +107,12 @@ export async function PUT(
         });
       } else if (status === "disputed") {
         auditAction = "disputed";
+        // Store dispute reason on the sale for easy access
+        if (reason) {
+          updates.disputeReason = reason;
+          updates.disputedAt = Timestamp.now();
+          updates.disputedBy = { uid: user.uid, name: user.name };
+        }
       } else if (status === "rejected") {
         auditAction = "rejected";
 

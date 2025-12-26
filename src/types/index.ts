@@ -305,6 +305,13 @@ export interface Sale {
     uid: string;
     name: string;
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  disputedAt?: Timestamp | any;
+  disputedBy?: {
+    uid: string;
+    name: string;
+  };
+  disputeReason?: string;
   notes?: string;
 }
 

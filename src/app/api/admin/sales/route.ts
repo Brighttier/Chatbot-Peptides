@@ -8,6 +8,7 @@ import {
   createSaleAuditLogAdmin,
   getConversationMessagesAdmin,
   getRepByPhoneNumberAdmin,
+  getSaleAuditLogsAdmin,
 } from "@/lib/firebase-admin";
 import { requireRole, getSession } from "@/lib/auth-admin";
 import {
@@ -71,7 +72,21 @@ export async function GET(request: NextRequest) {
       offset,
     });
 
-    return NextResponse.json({ sales, total });
+    // For disputed sales without disputeReason, fetch from audit logs (backward compatibility)
+    const enrichedSales = await Promise.all(
+      sales.map(async (sale) => {
+        if (sale.status === "disputed" && !sale.disputeReason && sale.id) {
+          const auditLogs = await getSaleAuditLogsAdmin(sale.id);
+          const disputeLog = auditLogs.find((log) => log.action === "disputed");
+          if (disputeLog?.reason) {
+            return { ...sale, disputeReason: disputeLog.reason };
+          }
+        }
+        return sale;
+      })
+    );
+
+    return NextResponse.json({ sales: enrichedSales, total });
   } catch (error) {
     console.error("Error listing sales:", error);
     return NextResponse.json(

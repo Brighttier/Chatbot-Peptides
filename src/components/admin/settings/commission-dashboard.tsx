@@ -443,7 +443,16 @@ export function CommissionDashboard() {
                     <td className="px-4 py-3 text-sm font-medium text-green-600">
                       ${sale.commissionAmount.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3">{getStatusBadge(sale.status)}</td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-col gap-1">
+                        {getStatusBadge(sale.status)}
+                        {sale.status === "disputed" && sale.disputeReason && (
+                          <span className="text-xs text-red-600 italic max-w-[150px] truncate" title={sale.disputeReason}>
+                            {sale.disputeReason}
+                          </span>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-4 py-3 text-sm text-gray-500">
                       {sale.repInfo.name}
                     </td>
