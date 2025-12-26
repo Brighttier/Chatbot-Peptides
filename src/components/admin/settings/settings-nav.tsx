@@ -10,6 +10,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   superAdminOnly?: boolean;
+  adminOnly?: boolean; // admin and super_admin only (not rep)
 }
 
 const navItems: NavItem[] = [
@@ -35,11 +36,13 @@ const navItems: NavItem[] = [
     href: "/admin/settings/widget",
     label: "Widget",
     icon: <Palette className="h-4 w-4" />,
+    adminOnly: true,
   },
   {
     href: "/admin/settings/embed",
     label: "Embed",
     icon: <Code className="h-4 w-4" />,
+    adminOnly: true,
   },
   {
     href: "/admin/settings/canned-responses",
@@ -52,11 +55,14 @@ export function SettingsNav() {
   const pathname = usePathname();
   const { hasRole } = useAuth();
   const isSuperAdmin = hasRole(["super_admin"]);
+  const isAdminOrAbove = hasRole(["super_admin", "admin"]);
 
   // Filter nav items based on role
-  const visibleItems = navItems.filter(
-    (item) => !item.superAdminOnly || isSuperAdmin
-  );
+  const visibleItems = navItems.filter((item) => {
+    if (item.superAdminOnly && !isSuperAdmin) return false;
+    if (item.adminOnly && !isAdminOrAbove) return false;
+    return true;
+  });
 
   return (
     <nav className="flex gap-1 overflow-x-auto pb-1">

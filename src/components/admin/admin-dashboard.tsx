@@ -47,8 +47,8 @@ export function AdminDashboard() {
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
 
-  // Check if user can access settings (admin or super_admin only)
-  const canAccessSettings = hasRole(["super_admin", "admin"]);
+  // Check if user can access settings (all roles can access for canned responses)
+  const canAccessSettings = hasRole(["super_admin", "admin", "rep"]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
