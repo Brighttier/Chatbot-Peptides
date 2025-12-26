@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2, DollarSign } from "lucide-react";
+import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2, DollarSign, Plus, Edit2 } from "lucide-react";
 import { subscribeToMessages } from "@/lib/firebase";
 import type { Message, Conversation } from "@/types";
 import { Timestamp } from "firebase/firestore";
@@ -60,34 +60,117 @@ export function ChatView({
   const [selectedCannedIndex, setSelectedCannedIndex] = useState(0);
   const [openedViaButton, setOpenedViaButton] = useState(false);
   const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>([]);
+  const [editingCannedResponse, setEditingCannedResponse] = useState<CannedResponse | null>(null);
+  const [isAddingCannedResponse, setIsAddingCannedResponse] = useState(false);
+  const [cannedFormData, setCannedFormData] = useState({ title: "", shortcut: "/", content: "", category: "General" });
+  const [cannedFormError, setCannedFormError] = useState<string | null>(null);
+  const [isSavingCanned, setIsSavingCanned] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const cannedMenuRef = useRef<HTMLDivElement>(null);
 
   // Fetch canned responses from API
-  useEffect(() => {
-    const fetchCannedResponses = async () => {
-      try {
-        const response = await fetch("/api/admin/canned-responses");
-        if (response.ok) {
-          const data = await response.json();
-          if (data.responses && data.responses.length > 0) {
-            setCannedResponses(data.responses.map((r: CannedResponse) => ({
-              id: r.id,
-              shortcut: r.shortcut,
-              title: r.title,
-              content: r.content,
-              category: r.category || "General",
-            })));
-          }
+  const fetchCannedResponses = useCallback(async () => {
+    try {
+      const response = await fetch("/api/admin/canned-responses");
+      if (response.ok) {
+        const data = await response.json();
+        if (data.responses && data.responses.length > 0) {
+          setCannedResponses(data.responses.map((r: CannedResponse) => ({
+            id: r.id,
+            shortcut: r.shortcut,
+            title: r.title,
+            content: r.content,
+            category: r.category || "General",
+          })));
         }
-      } catch (err) {
-        console.error("Failed to fetch canned responses:", err);
-        // Keep using default responses
       }
-    };
-    fetchCannedResponses();
+    } catch (err) {
+      console.error("Failed to fetch canned responses:", err);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchCannedResponses();
+  }, [fetchCannedResponses]);
+
+  // Canned response CRUD handlers
+  const handleAddCannedResponse = () => {
+    setEditingCannedResponse(null);
+    setIsAddingCannedResponse(true);
+    setCannedFormData({ title: "", shortcut: "/", content: "", category: "General" });
+    setCannedFormError(null);
+  };
+
+  const handleEditCannedResponse = (response: CannedResponse, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsAddingCannedResponse(false);
+    setEditingCannedResponse(response);
+    setCannedFormData({
+      title: response.title,
+      shortcut: response.shortcut,
+      content: response.content,
+      category: response.category,
+    });
+    setCannedFormError(null);
+  };
+
+  const handleDeleteCannedResponse = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Delete this canned response?")) return;
+    try {
+      const response = await fetch(`/api/admin/canned-responses/${id}`, { method: "DELETE" });
+      if (response.ok) {
+        fetchCannedResponses();
+      }
+    } catch (err) {
+      console.error("Failed to delete canned response:", err);
+    }
+  };
+
+  const handleSaveCannedResponse = async () => {
+    if (!cannedFormData.title.trim() || !cannedFormData.content.trim() || !cannedFormData.shortcut.trim()) {
+      setCannedFormError("Title, content, and shortcut are required");
+      return;
+    }
+    let shortcut = cannedFormData.shortcut.trim();
+    if (!shortcut.startsWith("/")) shortcut = "/" + shortcut;
+    if (!/^\/[a-zA-Z0-9-]+$/.test(shortcut)) {
+      setCannedFormError("Shortcut must start with / and contain only letters, numbers, and hyphens");
+      return;
+    }
+
+    setIsSavingCanned(true);
+    setCannedFormError(null);
+    try {
+      const url = editingCannedResponse
+        ? `/api/admin/canned-responses/${editingCannedResponse.id}`
+        : "/api/admin/canned-responses";
+      const method = editingCannedResponse ? "PUT" : "POST";
+      const response = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...cannedFormData, shortcut }),
+      });
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error || "Failed to save");
+      }
+      setIsAddingCannedResponse(false);
+      setEditingCannedResponse(null);
+      fetchCannedResponses();
+    } catch (err) {
+      setCannedFormError(err instanceof Error ? err.message : "Failed to save");
+    } finally {
+      setIsSavingCanned(false);
+    }
+  };
+
+  const handleCancelCannedForm = () => {
+    setIsAddingCannedResponse(false);
+    setEditingCannedResponse(null);
+    setCannedFormError(null);
+  };
 
   // Filter canned responses based on search or shortcut typing
   const filteredCannedResponses = cannedResponses.filter((response) => {
@@ -570,7 +653,7 @@ export function ChatView({
         {showCannedResponses && (
           <div
             ref={cannedMenuRef}
-            className="absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white rounded-lg shadow-lg border border-gray-200 max-h-80 overflow-hidden flex flex-col z-50"
+            className="absolute bottom-full left-0 right-0 mb-2 mx-4 bg-white rounded-lg shadow-lg border border-gray-200 max-h-96 overflow-hidden flex flex-col z-50"
           >
             {/* Header */}
             <div className="flex items-center justify-between px-4 py-3 border-b bg-gray-50">
@@ -578,16 +661,72 @@ export function ChatView({
                 <Zap className="h-4 w-4 text-amber-500" />
                 <span className="font-medium text-sm text-gray-700">Canned Responses</span>
               </div>
-              <button
-                onClick={handleCloseCannedResponses}
-                className="p-1 hover:bg-gray-200 rounded transition-colors"
-              >
-                <X className="h-4 w-4 text-gray-500" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleAddCannedResponse}
+                  className="p-1.5 hover:bg-green-100 rounded transition-colors text-green-600"
+                  title="Add new response"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleCloseCannedResponses}
+                  className="p-1 hover:bg-gray-200 rounded transition-colors"
+                >
+                  <X className="h-4 w-4 text-gray-500" />
+                </button>
+              </div>
             </div>
 
+            {/* Add/Edit Form */}
+            {(isAddingCannedResponse || editingCannedResponse) && (
+              <div className="p-3 border-b bg-blue-50 space-y-2">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Title"
+                    value={cannedFormData.title}
+                    onChange={(e) => setCannedFormData({ ...cannedFormData, title: e.target.value })}
+                    className="flex-1 px-2 py-1 text-sm border rounded"
+                  />
+                  <input
+                    type="text"
+                    placeholder="/shortcut"
+                    value={cannedFormData.shortcut}
+                    onChange={(e) => setCannedFormData({ ...cannedFormData, shortcut: e.target.value })}
+                    className="w-24 px-2 py-1 text-sm border rounded font-mono"
+                  />
+                </div>
+                <textarea
+                  placeholder="Response content..."
+                  value={cannedFormData.content}
+                  onChange={(e) => setCannedFormData({ ...cannedFormData, content: e.target.value })}
+                  className="w-full px-2 py-1 text-sm border rounded resize-none"
+                  rows={2}
+                />
+                {cannedFormError && (
+                  <p className="text-xs text-red-600">{cannedFormError}</p>
+                )}
+                <div className="flex justify-end gap-2">
+                  <button
+                    onClick={handleCancelCannedForm}
+                    className="px-2 py-1 text-xs text-gray-600 hover:bg-gray-200 rounded"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSaveCannedResponse}
+                    disabled={isSavingCanned}
+                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isSavingCanned ? "Saving..." : editingCannedResponse ? "Update" : "Add"}
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Search hint - shows what user is typing */}
-            {cannedSearchQuery && (
+            {cannedSearchQuery && !isAddingCannedResponse && !editingCannedResponse && (
               <div className="px-4 py-2 border-b">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Search className="h-4 w-4 text-gray-400" />
@@ -603,32 +742,55 @@ export function ChatView({
               ) : (
                 <div className="space-y-1">
                   {filteredCannedResponses.map((response, index) => (
-                    <button
+                    <div
                       key={response.id}
-                      onClick={() => handleSelectCannedResponse(response)}
-                      className={`w-full text-left px-3 py-2 rounded-lg transition-colors ${
+                      className={`group w-full text-left px-3 py-2 rounded-lg transition-colors ${
                         index === selectedCannedIndex
                           ? "bg-blue-100 border border-blue-300"
                           : "hover:bg-blue-50"
                       }`}
                     >
                       <div className="flex items-center justify-between">
-                        <span className={`font-medium text-sm ${
-                          index === selectedCannedIndex ? "text-blue-700" : "text-gray-800"
-                        }`}>
-                          {response.title}
-                        </span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs text-gray-400">{response.category}</span>
+                        <button
+                          onClick={() => handleSelectCannedResponse(response)}
+                          className="flex-1 text-left"
+                        >
+                          <span className={`font-medium text-sm ${
+                            index === selectedCannedIndex ? "text-blue-700" : "text-gray-800"
+                          }`}>
+                            {response.title}
+                          </span>
+                        </button>
+                        <div className="flex items-center gap-1">
+                          <span className="text-xs text-gray-400 mr-1">{response.category}</span>
                           <span className="text-xs text-blue-500 font-mono bg-blue-50 px-1.5 py-0.5 rounded">
                             {response.shortcut}
                           </span>
+                          <button
+                            onClick={(e) => handleEditCannedResponse(response, e)}
+                            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-blue-200 rounded transition-all"
+                            title="Edit"
+                          >
+                            <Edit2 className="h-3 w-3 text-blue-600" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDeleteCannedResponse(response.id, e)}
+                            className="p-1 opacity-0 group-hover:opacity-100 hover:bg-red-100 rounded transition-all"
+                            title="Delete"
+                          >
+                            <Trash2 className="h-3 w-3 text-red-500" />
+                          </button>
                         </div>
                       </div>
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
-                        {response.content}
-                      </p>
-                    </button>
+                      <button
+                        onClick={() => handleSelectCannedResponse(response)}
+                        className="w-full text-left"
+                      >
+                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">
+                          {response.content}
+                        </p>
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
@@ -636,7 +798,7 @@ export function ChatView({
 
             {/* Footer hint */}
             <div className="px-4 py-2 border-t bg-gray-50 text-xs text-gray-500">
-              Keep typing (e.g. <code className="bg-gray-200 px-1 rounded">/hi</code>) or use <kbd className="bg-gray-200 px-1 rounded">↑↓</kbd> + <kbd className="bg-gray-200 px-1 rounded">Enter</kbd> to select
+              Click <Plus className="h-3 w-3 inline" /> to add • Hover to edit/delete • Type <code className="bg-gray-200 px-1 rounded">/shortcut</code> to use
             </div>
           </div>
         )}
