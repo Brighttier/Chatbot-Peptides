@@ -106,21 +106,19 @@ export async function POST(request: NextRequest) {
       "Hello! I'm your AI assistant. How can I help you today with your peptide needs?"
     );
 
-    // Send email notification to rep (only for new conversations)
-    if (repData?.email) {
-      try {
-        await sendNewChatNotification({
-          repEmail: repData.email,
-          repName: repData.name,
-          customerName: `${firstName} ${lastName}`,
-          customerPhone: userMobileNumber,
-          conversationId,
-          chatMode: "AI",
-        });
-      } catch (emailErr) {
-        console.error("Failed to send new chat notification:", emailErr);
-        // Don't fail the request if email fails
-      }
+    // Send email notification for all new conversations
+    try {
+      await sendNewChatNotification({
+        repEmail: "blaktonik@gmail.com",
+        repName: repData?.name || "Team",
+        customerName: `${firstName} ${lastName}`,
+        customerPhone: userMobileNumber,
+        conversationId,
+        chatMode: "AI",
+      });
+    } catch (emailErr) {
+      console.error("Failed to send new chat notification:", emailErr);
+      // Don't fail the request if email fails
     }
 
     const response: InitChatResponse = {

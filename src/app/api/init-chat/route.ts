@@ -130,21 +130,19 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if Twilio setup fails - fallback to basic mode
     }
 
-    // Send email notification to rep (only for new conversations)
-    if (repData?.email) {
-      try {
-        await sendNewChatNotification({
-          repEmail: repData.email,
-          repName: repData.name,
-          customerName: userName,
-          customerPhone: userMobileNumber,
-          conversationId,
-          chatMode: "HUMAN",
-        });
-      } catch (emailErr) {
-        console.error("Failed to send new chat notification:", emailErr);
-        // Don't fail the request if email fails
-      }
+    // Send email notification for all new conversations
+    try {
+      await sendNewChatNotification({
+        repEmail: "blaktonik@gmail.com",
+        repName: repData?.name || "Team",
+        customerName: userName,
+        customerPhone: userMobileNumber,
+        conversationId,
+        chatMode: "HUMAN",
+      });
+    } catch (emailErr) {
+      console.error("Failed to send new chat notification:", emailErr);
+      // Don't fail the request if email fails
     }
 
     const response: InitChatResponse = {
