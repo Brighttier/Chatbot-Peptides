@@ -76,10 +76,15 @@ export async function GET(request: NextRequest) {
     const enrichedSales = await Promise.all(
       sales.map(async (sale) => {
         if (sale.status === "disputed" && !sale.disputeReason && sale.id) {
-          const auditLogs = await getSaleAuditLogsAdmin(sale.id);
-          const disputeLog = auditLogs.find((log) => log.action === "disputed");
-          if (disputeLog?.reason) {
-            return { ...sale, disputeReason: disputeLog.reason };
+          try {
+            const auditLogs = await getSaleAuditLogsAdmin(sale.id);
+            const disputeLog = auditLogs.find((log) => log.action === "disputed");
+            if (disputeLog?.reason) {
+              return { ...sale, disputeReason: disputeLog.reason };
+            }
+          } catch (err) {
+            // Ignore errors fetching audit logs - may need Firestore index
+            console.warn("Failed to fetch audit logs for sale:", sale.id, err);
           }
         }
         return sale;
