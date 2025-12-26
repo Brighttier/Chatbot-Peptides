@@ -29,7 +29,9 @@ export async function sendNewChatNotification({
   const modeLabel = chatMode === "AI" ? "AI Chat" : "Live Chat";
   const subjectPrefix = chatMode === "AI" ? "AI " : "";
 
-  const { error } = await resend.emails.send({
+  console.log(`Sending email notification to ${repEmail} for customer ${customerName}`);
+
+  const { data: emailId, error } = await resend.emails.send({
     from: "JA Protocol Chat <notification@brighttier.com>",
     to: repEmail,
     subject: `New ${subjectPrefix}Chat: ${customerName}`,
@@ -77,4 +79,6 @@ export async function sendNewChatNotification({
   if (error) {
     throw new Error(`Failed to send email: ${error.message}`);
   }
+
+  console.log(`Email sent successfully, id: ${emailId?.id}`);
 }
