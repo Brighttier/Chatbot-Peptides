@@ -212,8 +212,9 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error("Error creating sale:", error);
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return NextResponse.json(
-      { error: "Failed to create sale" },
+      { error: `Failed to create sale: ${errorMessage}` },
       { status: 500 }
     );
   }
