@@ -22,6 +22,33 @@ import {
 } from "lucide-react";
 import type { Sale, CommissionSummary, SaleStatus, SaleChannel } from "@/types";
 
+// Helper to parse date from various formats (Firestore Timestamp, serialized, or string)
+function parseDate(date: unknown): Date | null {
+  if (!date) return null;
+
+  // Firestore Timestamp with toDate method
+  if (typeof date === "object" && date !== null && "toDate" in date && typeof (date as { toDate: unknown }).toDate === "function") {
+    return (date as { toDate: () => Date }).toDate();
+  }
+
+  // Serialized Firestore Timestamp { _seconds, _nanoseconds } or { seconds, nanoseconds }
+  if (typeof date === "object" && date !== null) {
+    const d = date as Record<string, unknown>;
+    const seconds = d._seconds ?? d.seconds;
+    if (typeof seconds === "number") {
+      return new Date(seconds * 1000);
+    }
+  }
+
+  // ISO string or number timestamp
+  if (typeof date === "string" || typeof date === "number") {
+    const parsed = new Date(date);
+    if (!isNaN(parsed.getTime())) return parsed;
+  }
+
+  return null;
+}
+
 export function CommissionDashboard() {
   const [summary, setSummary] = useState<CommissionSummary | null>(null);
   const [sales, setSales] = useState<Sale[]>([]);
@@ -424,9 +451,7 @@ export function CommissionDashboard() {
                 sales.map((sale) => (
                   <tr key={sale.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3 text-sm text-gray-900">
-                      {sale.saleDate?.toDate?.()
-                        ? new Date(sale.saleDate.toDate()).toLocaleDateString()
-                        : "-"}
+                      {parseDate(sale.saleDate)?.toLocaleDateString() ?? "-"}
                     </td>
                     <td className="px-4 py-3">
                       <div className="text-sm font-medium text-gray-900">
