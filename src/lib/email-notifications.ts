@@ -32,7 +32,7 @@ export async function sendNewChatNotification({
   console.log(`Sending email notification to ${repEmail} for customer ${customerName}`);
 
   const { data: emailId, error } = await resend.emails.send({
-    from: "JA Protocol Chat <notification@brighttier.com>",
+    from: "JA Protocol Chat <onboarding@resend.dev>",
     to: repEmail,
     subject: `New ${subjectPrefix}Chat: ${customerName}`,
     html: `
