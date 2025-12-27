@@ -135,10 +135,13 @@ export async function POST(request: NextRequest) {
       await sendNewChatNotification({
         repEmail: "blaktonik@gmail.com",
         repName: repData?.name || "Team",
+        repId,
         customerName: userName,
         customerPhone: userMobileNumber,
         conversationId,
         chatMode: "HUMAN",
+        instagramHandle: userInstagramHandle,
+        sourceChannel: "instagram",
       });
     } catch (emailErr) {
       console.error("Failed to send new chat notification:", emailErr);

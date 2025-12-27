@@ -111,10 +111,14 @@ export async function POST(request: NextRequest) {
       await sendNewChatNotification({
         repEmail: "blaktonik@gmail.com",
         repName: repData?.name || "Team",
+        repId,
         customerName: `${firstName} ${lastName}`,
         customerPhone: userMobileNumber,
         conversationId,
         chatMode: "AI",
+        dateOfBirth,
+        sourceChannel: "website",
+        intakeAnswers: intakeAnswers as Record<string, string> | undefined,
       });
     } catch (emailErr) {
       console.error("Failed to send new chat notification:", emailErr);
