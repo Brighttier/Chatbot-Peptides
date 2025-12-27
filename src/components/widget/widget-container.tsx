@@ -35,9 +35,9 @@ interface WidgetContainerProps {
 }
 
 const sizeMap = {
-  compact: { width: 350, height: 480 },
-  standard: { width: 380, height: 550 },
-  large: { width: 420, height: 620 },
+  compact: { width: 320, height: 450 },
+  standard: { width: 360, height: 520 },
+  large: { width: 400, height: 600 },
 };
 
 export function WidgetContainer({
@@ -281,8 +281,9 @@ export function WidgetContainer({
   const positionClasses =
     position === "bottom-right" ? "right-4 sm:right-6" : "left-4 sm:left-6";
 
-  const widgetWidth = Math.min(dimensions.width, windowSize.width - 32);
-  const widgetHeight = Math.min(dimensions.height, windowSize.height - 120);
+  // Responsive widget sizing with safe area consideration
+  const widgetWidth = Math.min(dimensions.width, windowSize.width - 16);
+  const widgetHeight = Math.min(dimensions.height, windowSize.height - 100);
 
   // Get header title based on step
   const getHeaderTitle = () => {
@@ -321,7 +322,7 @@ export function WidgetContainer({
       {isOpen && (
         <div
           className={`
-            fixed bottom-20 sm:bottom-24 ${positionClasses}
+            fixed ${positionClasses}
             bg-white shadow-2xl overflow-hidden
             transition-all duration-300 ease-out
             z-[9998] flex flex-col
@@ -330,6 +331,7 @@ export function WidgetContainer({
             width: widgetWidth,
             height: widgetHeight,
             borderRadius: borderRadius,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
           }}
         >
           {/* Header - shown on all steps except ai-avatar */}

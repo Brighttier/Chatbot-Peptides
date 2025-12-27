@@ -102,7 +102,7 @@ export function ChatApp() {
 
   return (
     <div className="">
-      <Card className="flex h-[700px] w-full md:w-[600px] mx-auto flex-col overflow-hidden shadow-2xl">
+      <Card className="flex h-[100dvh] max-h-[700px] sm:h-[700px] w-full md:w-[600px] mx-auto flex-col overflow-hidden shadow-2xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -180,7 +180,7 @@ export function ChatApp() {
                     )}
                   </motion.div>
                   <div
-                    className={`flex max-w-[75%] flex-col ${
+                    className={`flex max-w-[85%] sm:max-w-[75%] flex-col ${
                       message.sender === "user" ? "items-end" : "items-start"
                     }`}
                   >
@@ -194,10 +194,10 @@ export function ChatApp() {
                           : "bg-accent text-accent-foreground"
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{message.text}</p>
+                      <p className="text-base sm:text-sm leading-relaxed">{message.text}</p>
                     </motion.div>
                     <time
-                      className="mt-1.5 px-1 text-xs text-muted-foreground"
+                      className="mt-1.5 px-1 text-sm sm:text-xs text-muted-foreground"
                       dateTime={message.timestamp.toISOString()}
                     >
                       {formatTime(message.timestamp)}

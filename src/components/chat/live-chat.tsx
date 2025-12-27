@@ -171,7 +171,7 @@ export function LiveChat({
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background p-4">
-      <Card className="flex h-[700px] w-full md:w-[600px] flex-col overflow-hidden shadow-2xl">
+      <Card className="flex h-[100dvh] max-h-[700px] sm:h-[700px] w-full md:w-[600px] flex-col overflow-hidden shadow-2xl">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -275,7 +275,7 @@ export function LiveChat({
                     {getSenderIcon(message.sender)}
                   </motion.div>
                   <div
-                    className={`flex max-w-[75%] flex-col ${
+                    className={`flex max-w-[85%] sm:max-w-[75%] flex-col ${
                       message.sender === "USER" ? "items-end" : "items-start"
                     }`}
                   >
@@ -289,10 +289,10 @@ export function LiveChat({
                           : "bg-accent text-accent-foreground"
                       }`}
                     >
-                      <p className="text-sm leading-relaxed">{message.content}</p>
+                      <p className="text-base sm:text-sm leading-relaxed">{message.content}</p>
                     </motion.div>
                     <time
-                      className="mt-1.5 px-1 text-xs text-muted-foreground"
+                      className="mt-1.5 px-1 text-sm sm:text-xs text-muted-foreground"
                       dateTime={message.timestamp.toISOString()}
                     >
                       {formatTime(message.timestamp)}

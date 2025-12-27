@@ -650,7 +650,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
                   {getSenderIcon(message.sender)}
                 </div>
                 <div
-                  className={`flex max-w-[75%] flex-col ${
+                  className={`flex max-w-[85%] sm:max-w-[75%] flex-col ${
                     message.sender === "USER" ? "items-start" : "items-end"
                   }`}
                 >

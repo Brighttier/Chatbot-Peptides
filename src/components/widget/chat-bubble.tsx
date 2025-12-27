@@ -31,7 +31,7 @@ export function ChatBubble({
     }
   }, [isOpen, hasInteracted]);
 
-  // Position classes
+  // Position classes with safe area support for iPhone
   const positionClasses =
     position === "bottom-right" ? "right-4 sm:right-6" : "left-4 sm:left-6";
 
@@ -39,7 +39,7 @@ export function ChatBubble({
     <button
       onClick={onClick}
       className={`
-        fixed bottom-4 sm:bottom-6 ${positionClasses}
+        fixed ${positionClasses}
         w-14 h-14 sm:w-16 sm:h-16
         rounded-full shadow-lg
         flex items-center justify-center
@@ -48,7 +48,10 @@ export function ChatBubble({
         focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50
         z-[9999]
       `}
-      style={{ backgroundColor: primaryColor }}
+      style={{
+        backgroundColor: primaryColor,
+        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+      }}
       aria-label={isOpen ? "Close chat" : "Open chat"}
     >
       {/* Pulse animation ring */}

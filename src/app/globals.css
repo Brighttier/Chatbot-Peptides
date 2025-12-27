@@ -141,3 +141,22 @@ html {
     height: 100dvh;
   }
 }
+
+/* iOS keyboard appearance handling */
+@supports (height: 100dvh) {
+  .chat-container {
+    height: 100dvh;
+    max-height: -webkit-fill-available;
+  }
+}
+
+/* Ensure inputs don't zoom on iOS */
+input, textarea, select {
+  font-size: 16px;
+}
+
+/* Better touch scrolling */
+.scrollable {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}

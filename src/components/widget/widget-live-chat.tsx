@@ -157,7 +157,7 @@ export function WidgetLiveChat({
                 {getSenderIcon(message.sender)}
               </div>
               <div
-                className={`flex max-w-[75%] flex-col ${
+                className={`flex max-w-[85%] sm:max-w-[75%] flex-col ${
                   message.sender === "USER" ? "items-end" : "items-start"
                 }`}
               >
@@ -168,9 +168,9 @@ export function WidgetLiveChat({
                       : "bg-gray-100 text-gray-900"
                   }`}
                 >
-                  <p className="text-sm leading-relaxed">{message.content}</p>
+                  <p className="text-base sm:text-sm leading-relaxed">{message.content}</p>
                 </div>
-                <time className="mt-1 px-1 text-[10px] text-gray-400">
+                <time className="mt-1 px-1 text-xs sm:text-[10px] text-gray-400">
                   {formatTime(message.timestamp)}
                 </time>
               </div>
