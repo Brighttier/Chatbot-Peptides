@@ -24,7 +24,7 @@ export async function sendNewChatNotification({
   chatMode,
 }: NewChatNotificationParams): Promise<void> {
   const baseUrl =
-    process.env.NEXT_PUBLIC_APP_URL || "https://chat.peptidesforlife.co";
+    process.env.NEXT_PUBLIC_APP_URL || "https://support.japrotocols.com";
 
   const modeLabel = chatMode === "AI" ? "AI Chat" : "Live Chat";
   const subjectPrefix = chatMode === "AI" ? "AI " : "";
