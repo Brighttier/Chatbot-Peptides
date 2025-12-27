@@ -131,7 +131,7 @@ export async function POST(request: NextRequest) {
     // Send email notification for all new conversations
     try {
       await sendNewChatNotification({
-        repEmail: "blaktonik@gmail.com",
+        repEmail: "notificationsjaprotocols@gmail.com",
         repName: repData?.name || "Team",
         repId,
         customerName: `${firstName} ${lastName}`,
