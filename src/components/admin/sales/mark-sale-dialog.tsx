@@ -26,6 +26,7 @@ export function MarkSaleDialog({
   onSuccess,
 }: MarkSaleDialogProps) {
   const [saleAmount, setSaleAmount] = useState("");
+  const [productType, setProductType] = useState("");
   const [productDetails, setProductDetails] = useState("");
   const [notes, setNotes] = useState("");
   const [saleDate, setSaleDate] = useState(
@@ -46,13 +47,18 @@ export function MarkSaleDialog({
     setIsSubmitting(true);
 
     try {
+      // Combine productType and productDetails
+      const combinedProductDetails = productDetails
+        ? `${productType}: ${productDetails}`
+        : productType;
+
       const response = await fetch("/api/admin/sales", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           conversationId,
           saleAmount: parseFloat(saleAmount),
-          productDetails,
+          productDetails: combinedProductDetails,
           saleDate,
           notes,
         }),
@@ -82,6 +88,7 @@ export function MarkSaleDialog({
 
   const handleClose = () => {
     setSaleAmount("");
+    setProductType("");
     setProductDetails("");
     setNotes("");
     setSaleDate(new Date().toISOString().split("T")[0]);
@@ -178,6 +185,22 @@ export function MarkSaleDialog({
             />
           </div>
 
+          {/* Product Type */}
+          <div className="space-y-2">
+            <Label htmlFor="productType">Product Type *</Label>
+            <select
+              id="productType"
+              value={productType}
+              onChange={(e) => setProductType(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              required
+            >
+              <option value="">Select type...</option>
+              <option value="Peptides">Peptides</option>
+              <option value="Training">Training</option>
+            </select>
+          </div>
+
           {/* Product Details */}
           <div className="space-y-2">
             <Label htmlFor="productDetails">Product Details (optional)</Label>
@@ -232,7 +255,7 @@ export function MarkSaleDialog({
             <Button
               type="submit"
               className="flex-1 bg-green-600 hover:bg-green-700"
-              disabled={isSubmitting || !saleAmount || success}
+              disabled={isSubmitting || !saleAmount || !productType || success}
             >
               {isSubmitting ? (
                 <>
