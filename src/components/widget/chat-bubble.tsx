@@ -44,8 +44,8 @@ export function ChatBubble({
           style={{
             backgroundColor: primaryColor,
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-            right: position === "bottom-right" ? "calc(1.5rem + 64px)" : undefined,
-            left: position === "bottom-left" ? "calc(1.5rem + 64px)" : undefined,
+            right: position === "bottom-right" ? "calc(4rem + 76px)" : undefined,
+            left: position === "bottom-left" ? "calc(4rem + 76px)" : undefined,
           }}
         >
           <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
