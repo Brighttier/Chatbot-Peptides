@@ -40,21 +40,12 @@ export function ChatBubble({
       {/* "Talk to us" Banner - Only visible when chat is closed */}
       {!isOpen && (
         <div
-          className={`
-            fixed ${positionClasses}
-            flex items-center gap-3
-            px-4 py-2.5
-            rounded-full shadow-lg
-            transition-all duration-300 ease-in-out
-            pointer-events-none
-            z-[9998]
-            animate-fade-in
-          `}
+          className="fixed flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ease-in-out pointer-events-none z-[9998] animate-fade-in"
           style={{
             backgroundColor: primaryColor,
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-            right: position === "bottom-right" ? "calc(1rem + 64px + 0.5rem)" : undefined,
-            left: position === "bottom-left" ? "calc(1rem + 64px + 0.5rem)" : undefined,
+            right: position === "bottom-right" ? "calc(1.5rem + 64px)" : undefined,
+            left: position === "bottom-left" ? "calc(1.5rem + 64px)" : undefined,
           }}
         >
           <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
