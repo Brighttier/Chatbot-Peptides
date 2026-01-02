@@ -36,24 +36,52 @@ export function ChatBubble({
     position === "bottom-right" ? "right-4 sm:right-6" : "left-4 sm:left-6";
 
   return (
-    <button
-      onClick={onClick}
-      className={`
-        fixed ${positionClasses}
-        w-14 h-14 sm:w-16 sm:h-16
-        rounded-full shadow-lg
-        flex items-center justify-center
-        transition-all duration-300 ease-in-out
-        hover:scale-110 active:scale-95
-        focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50
-        z-[9999]
-      `}
-      style={{
-        backgroundColor: primaryColor,
-        bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
-      }}
-      aria-label={isOpen ? "Close chat" : "Open chat"}
-    >
+    <>
+      {/* "Talk to us" Banner - Only visible when chat is closed */}
+      {!isOpen && (
+        <div
+          className={`
+            fixed ${positionClasses}
+            flex items-center gap-3
+            px-4 py-2.5
+            rounded-full shadow-lg
+            transition-all duration-300 ease-in-out
+            pointer-events-none
+            z-[9998]
+            animate-fade-in
+          `}
+          style={{
+            backgroundColor: primaryColor,
+            bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+            right: position === "bottom-right" ? "calc(1rem + 64px + 0.5rem)" : undefined,
+            left: position === "bottom-left" ? "calc(1rem + 64px + 0.5rem)" : undefined,
+          }}
+        >
+          <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
+            Talk to us
+          </span>
+        </div>
+      )}
+
+      {/* Chat Bubble Button */}
+      <button
+        onClick={onClick}
+        className={`
+          fixed ${positionClasses}
+          w-14 h-14 sm:w-16 sm:h-16
+          rounded-full shadow-lg
+          flex items-center justify-center
+          transition-all duration-300 ease-in-out
+          hover:scale-110 active:scale-95
+          focus:outline-none focus:ring-4 focus:ring-blue-300 focus:ring-opacity-50
+          z-[9999]
+        `}
+        style={{
+          backgroundColor: primaryColor,
+          bottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+        }}
+        aria-label={isOpen ? "Close chat" : "Open chat"}
+      >
       {/* Pulse animation ring */}
       {showPulse && !isOpen && (
         <>
@@ -96,6 +124,7 @@ export function ChatBubble({
           <span className="absolute bottom-0 right-4 translate-y-1/2 rotate-45 w-2 h-2 bg-gray-900" />
         </span>
       )}
-    </button>
+      </button>
+    </>
   );
 }
