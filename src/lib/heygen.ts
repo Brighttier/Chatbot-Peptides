@@ -110,7 +110,7 @@ export async function createStreamingSession(): Promise<{
     // Build request body - only include voice if configured
     const requestBody: Record<string, unknown> = {
       quality: "medium",
-      avatar_name: process.env.HEYGEN_AVATAR_ID || "Wayne_20240711",
+      avatar_id: process.env.HEYGEN_AVATAR_ID || "Wayne_20240711",
       version: "v2",
       video_encoding: "H264",
     };
