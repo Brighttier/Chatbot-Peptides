@@ -128,6 +128,10 @@ export async function createStreamingSession(): Promise<{
       requestBody.knowledge_base_id = process.env.HEYGEN_KNOWLEDGE_ID;
     }
 
+    // Debug logging to verify what's being sent
+    console.log("HeyGen streaming.new request body:", JSON.stringify(requestBody, null, 2));
+    console.log("HEYGEN_AVATAR_ID env value:", process.env.HEYGEN_AVATAR_ID);
+
     // Step 1: Create new session
     const response = await fetch(`${HEYGEN_API_BASE}/streaming.new`, {
       method: "POST",
