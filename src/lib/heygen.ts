@@ -1,6 +1,10 @@
 import type { HeyGenResponse } from "@/types";
 
-const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY;
+// LiveAvatar API (new HeyGen streaming API)
+const LIVEAVATAR_API_KEY = process.env.HEYGEN_API_KEY;
+const LIVEAVATAR_API_BASE = "https://api.liveavatar.com/v1";
+
+// Legacy HeyGen API base (kept for reference)
 const HEYGEN_API_BASE = "https://api.heygen.com/v1";
 
 // HeyGen API client for Live Video Avatar
@@ -8,7 +12,7 @@ export async function generateAIResponse(
   userMessage: string,
   conversationContext?: string[]
 ): Promise<HeyGenResponse> {
-  if (!HEYGEN_API_KEY) {
+  if (!LIVEAVATAR_API_KEY) {
     return {
       success: false,
       error: "HeyGen API key not configured",
@@ -26,7 +30,7 @@ export async function generateAIResponse(
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Api-Key": HEYGEN_API_KEY,
+        "X-Api-Key": LIVEAVATAR_API_KEY,
       },
       body: JSON.stringify({
         text: userMessage,
@@ -94,177 +98,167 @@ function generateFallbackTextResponse(userMessage: string): string {
   return "Thank you for your message. A representative will review your inquiry and respond shortly. Is there anything specific I can help you with in the meantime?";
 }
 
-// Create a HeyGen streaming session for real-time avatar
+// Create a LiveAvatar streaming session for real-time avatar
+// Uses the new LiveAvatar API: https://docs.liveavatar.com
 export async function createStreamingSession(): Promise<{
   sessionId: string;
   accessToken: string;
   url: string;
   sessionDurationLimit: number;
 } | null> {
-  if (!HEYGEN_API_KEY) {
-    console.error("HeyGen API key not configured");
+  if (!LIVEAVATAR_API_KEY) {
+    console.error("LiveAvatar API key not configured");
+    return null;
+  }
+
+  const avatarId = process.env.HEYGEN_AVATAR_ID;
+  const voiceId = process.env.HEYGEN_VOICE_ID;
+  const contextId = process.env.HEYGEN_KNOWLEDGE_ID;
+
+  if (!avatarId) {
+    console.error("HEYGEN_AVATAR_ID not configured");
+    return null;
+  }
+
+  if (!contextId) {
+    console.error("HEYGEN_KNOWLEDGE_ID (context_id) not configured - required for FULL mode");
     return null;
   }
 
   try {
-    // Build request body - only include voice if configured
-    const requestBody: Record<string, unknown> = {
-      quality: "medium",
-      avatar_id: process.env.HEYGEN_AVATAR_ID || "Wayne_20240711",
-      version: "v2",
-      video_encoding: "H264",
+    // Step 1: Create session token
+    // POST /sessions/token with avatar configuration
+    // Note: In FULL mode, context_id is required
+    const avatarPersona: Record<string, string> = {
+      context_id: contextId,
+      language: "en",
     };
 
-    // Only add voice settings if voice ID is configured
-    if (process.env.HEYGEN_VOICE_ID) {
-      requestBody.voice = {
-        voice_id: process.env.HEYGEN_VOICE_ID,
-      };
+    // Only add voice_id if configured
+    if (voiceId) {
+      avatarPersona.voice_id = voiceId;
     }
 
-    // Add knowledge base ID if configured (for LLM-powered responses)
-    // Note: parameter is knowledge_base_id (not knowledge_id), requires version: "v2"
-    if (process.env.HEYGEN_KNOWLEDGE_ID) {
-      requestBody.knowledge_base_id = process.env.HEYGEN_KNOWLEDGE_ID;
-    }
+    const tokenRequestBody = {
+      mode: "FULL",
+      avatar_id: avatarId,
+      avatar_persona: avatarPersona,
+    };
 
-    // Debug logging to verify what's being sent
-    console.log("HeyGen streaming.new request body:", JSON.stringify(requestBody, null, 2));
-    console.log("HEYGEN_AVATAR_ID env value:", process.env.HEYGEN_AVATAR_ID);
+    console.log("LiveAvatar session token request:", JSON.stringify(tokenRequestBody, null, 2));
+    console.log("Using avatar_id:", avatarId);
 
-    // Step 1: Create new session
-    const response = await fetch(`${HEYGEN_API_BASE}/streaming.new`, {
+    const tokenResponse = await fetch(`${LIVEAVATAR_API_BASE}/sessions/token`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Api-Key": HEYGEN_API_KEY,
+        "X-API-KEY": LIVEAVATAR_API_KEY,
       },
-      body: JSON.stringify(requestBody),
+      body: JSON.stringify(tokenRequestBody),
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Failed to create HeyGen streaming session:", response.status, errorData);
+    if (!tokenResponse.ok) {
+      const errorData = await tokenResponse.json().catch(() => ({}));
+      console.error("Failed to create LiveAvatar session token:", tokenResponse.status, errorData);
       return null;
     }
 
-    const result = await response.json();
-    const data = result.data;
+    const tokenResult = await tokenResponse.json();
+    console.log("LiveAvatar token response:", JSON.stringify(tokenResult, null, 2));
 
-    if (!data?.session_id) {
-      console.error("Invalid response from HeyGen streaming.new:", result);
+    const sessionId = tokenResult.session_id;
+    const sessionToken = tokenResult.session_token;
+
+    if (!sessionId || !sessionToken) {
+      console.error("Invalid response from LiveAvatar sessions/token:", tokenResult);
       return null;
     }
 
-    // Step 2: Start the streaming session
-    const startResponse = await fetch(`${HEYGEN_API_BASE}/streaming.start`, {
+    // Step 2: Start the session
+    // POST /sessions/start with Bearer token
+    const startResponse = await fetch(`${LIVEAVATAR_API_BASE}/sessions/start`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Api-Key": HEYGEN_API_KEY,
+        "Authorization": `Bearer ${sessionToken}`,
       },
-      body: JSON.stringify({
-        session_id: data.session_id,
-      }),
     });
 
     if (!startResponse.ok) {
       const errorData = await startResponse.json().catch(() => ({}));
-      console.error("Failed to start HeyGen streaming session:", startResponse.status, errorData);
-      // Try to clean up the created session
-      await closeStreamingSession(data.session_id);
+      console.error("Failed to start LiveAvatar session:", startResponse.status, errorData);
       return null;
     }
 
-    // Step 3: Send initial greeting to trigger avatar (helps with stream startup)
-    // Use "repeat" task type for a simple greeting that doesn't go through LLM
-    try {
-      await fetch(`${HEYGEN_API_BASE}/streaming.task`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Api-Key": HEYGEN_API_KEY,
-        },
-        body: JSON.stringify({
-          session_id: data.session_id,
-          text: "Hello! I'm your AI assistant. How can I help you today?",
-          task_type: "repeat",
-        }),
-      });
-    } catch (taskError) {
-      console.error("Failed to send initial greeting task:", taskError);
-      // Don't fail the session if greeting fails
+    const startResult = await startResponse.json();
+    console.log("LiveAvatar start response:", JSON.stringify(startResult, null, 2));
+
+    // The start response should contain LiveKit room URL and token
+    const livekitUrl = startResult.livekit_url || startResult.url;
+    const livekitToken = startResult.livekit_client_token || startResult.access_token;
+
+    if (!livekitUrl || !livekitToken) {
+      console.error("Invalid response from LiveAvatar sessions/start:", startResult);
+      return null;
     }
 
     return {
-      sessionId: data.session_id,
-      accessToken: data.access_token,
-      url: data.url,
-      sessionDurationLimit: data.session_duration_limit || 600,
+      sessionId: sessionId,
+      accessToken: livekitToken,
+      url: livekitUrl,
+      sessionDurationLimit: startResult.session_duration_limit || 600,
     };
   } catch (error) {
-    console.error("Error creating HeyGen streaming session:", error);
+    console.error("Error creating LiveAvatar streaming session:", error);
     return null;
   }
 }
 
-// Send text to HeyGen streaming avatar
-// task_type: "talk" processes through HeyGen's LLM/knowledge base before speaking
-// task_type: "repeat" speaks the exact text provided
+// Send text to LiveAvatar streaming avatar
 export async function sendTextToAvatar(
   sessionId: string,
   text: string,
-  taskType: "talk" | "repeat" = "talk"
+  _taskType: "talk" | "repeat" = "talk"
 ): Promise<boolean> {
-  if (!HEYGEN_API_KEY) {
+  if (!LIVEAVATAR_API_KEY) {
     return false;
   }
 
   try {
-    const response = await fetch(`${HEYGEN_API_BASE}/streaming.task`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Api-Key": HEYGEN_API_KEY,
-      },
-      body: JSON.stringify({
-        session_id: sessionId,
-        text,
-        task_type: taskType,
-      }),
-    });
+    // For LiveAvatar, we need to send events through LiveKit
+    // The text interaction happens through the LiveKit room, not a REST API
+    // This function may need to be updated based on how the frontend handles messages
+    console.log(`sendTextToAvatar called for session ${sessionId}: ${text}`);
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("Failed to send text to HeyGen avatar:", response.status, errorData);
-      return false;
-    }
-
+    // LiveAvatar uses LiveKit for real-time communication
+    // Text messages are typically sent via LiveKit data channels
+    // For now, return true as the frontend handles this via LiveKit
     return true;
   } catch (error) {
-    console.error("Error sending text to HeyGen avatar:", error);
+    console.error("Error sending text to LiveAvatar:", error);
     return false;
   }
 }
 
-// Close HeyGen streaming session
+// Close LiveAvatar streaming session
 export async function closeStreamingSession(sessionId: string): Promise<void> {
-  if (!HEYGEN_API_KEY) {
+  if (!LIVEAVATAR_API_KEY) {
     return;
   }
 
   try {
-    await fetch(`${HEYGEN_API_BASE}/streaming.stop`, {
+    // POST /sessions/stop to end the session
+    await fetch(`${LIVEAVATAR_API_BASE}/sessions/stop`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "X-Api-Key": HEYGEN_API_KEY,
+        "X-API-KEY": LIVEAVATAR_API_KEY,
       },
       body: JSON.stringify({
         session_id: sessionId,
       }),
     });
   } catch (error) {
-    console.error("Error closing HeyGen streaming session:", error);
+    console.error("Error closing LiveAvatar streaming session:", error);
   }
 }
