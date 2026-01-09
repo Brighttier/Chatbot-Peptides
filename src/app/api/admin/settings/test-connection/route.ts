@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const { service } = await request.json();
 
-    if (!service || !["heygen", "twilio"].includes(service)) {
+    if (!service || !["heygen", "gemini", "twilio"].includes(service)) {
       return NextResponse.json(
         { error: "Invalid service specified" },
         { status: 400 }
@@ -62,6 +62,44 @@ export async function POST(request: Request) {
         return NextResponse.json({
           success: false,
           error: `Failed to connect to HeyGen: ${err instanceof Error ? err.message : "Unknown error"}`,
+        });
+      }
+    }
+
+    if (service === "gemini") {
+      const apiKey = settings?.gemini?.apiKey || process.env.GEMINI_API_KEY;
+
+      if (!apiKey) {
+        return NextResponse.json({
+          success: false,
+          error: "Gemini API key not configured",
+        });
+      }
+
+      try {
+        // Test Gemini API by making a simple request
+        const { GoogleGenerativeAI } = await import("@google/generative-ai");
+        const genAI = new GoogleGenerativeAI(apiKey);
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const result = await model.generateContent("Say 'test successful' in exactly those words.");
+        const response = result.response.text();
+
+        if (response) {
+          return NextResponse.json({
+            success: true,
+            message: "Gemini connection successful",
+          });
+        } else {
+          return NextResponse.json({
+            success: false,
+            error: "Unexpected response from Gemini",
+          });
+        }
+      } catch (err) {
+        return NextResponse.json({
+          success: false,
+          error: `Failed to connect to Gemini: ${err instanceof Error ? err.message : "Unknown error"}`,
         });
       }
     }

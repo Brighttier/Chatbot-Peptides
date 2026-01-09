@@ -4,10 +4,26 @@ import {
   closeStreamingSession,
   sendTextToAvatar,
 } from "@/lib/heygen";
+import { generateGeminiResponse, generateFallbackResponse } from "@/lib/gemini";
 
 // POST - Create a new streaming session
 export async function POST() {
   try {
+    // HeyGen/LiveAvatar is disabled - always use text-only AI chat mode
+    // The video avatar functionality is preserved but bypassed
+    // To re-enable, set HEYGEN_ENABLED=true in environment variables
+    const heygenEnabled = process.env.HEYGEN_ENABLED === "true";
+
+    if (!heygenEnabled) {
+      console.log("HeyGen/LiveAvatar disabled - using AI text chat mode");
+      return NextResponse.json({
+        success: true,
+        fallbackMode: true,
+        sessionId: `fallback-${Date.now()}`,
+        message: "Using AI text chat mode",
+      });
+    }
+
     // Check if HeyGen API key is configured
     if (!process.env.HEYGEN_API_KEY) {
       console.log("HeyGen API key not configured - using fallback mode");
@@ -76,7 +92,7 @@ export async function DELETE(request: Request) {
   }
 }
 
-// PUT - Send text to avatar (or generate fallback response)
+// PUT - Send text to avatar (or generate AI response using Gemini)
 export async function PUT(request: Request) {
   try {
     const { sessionId, text } = await request.json();
@@ -88,9 +104,21 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Check if this is a fallback session
+    // Check if this is a fallback/text-only session (uses Gemini AI)
     if (sessionId.startsWith("fallback-")) {
-      // Generate a fallback AI response
+      // Try Gemini first, fall back to simple responses if it fails
+      const geminiResult = await generateGeminiResponse(text);
+
+      if (geminiResult.success && geminiResult.response) {
+        return NextResponse.json({
+          success: true,
+          fallbackMode: true,
+          aiResponse: geminiResult.response
+        });
+      }
+
+      // Gemini failed, use simple fallback
+      console.log("Gemini failed, using fallback:", geminiResult.error);
       const aiResponse = generateFallbackResponse(text);
       return NextResponse.json({
         success: true,
@@ -99,11 +127,16 @@ export async function PUT(request: Request) {
       });
     }
 
+    // HeyGen video mode (currently disabled)
     const success = await sendTextToAvatar(sessionId, text);
 
     if (!success) {
-      // If HeyGen fails, return fallback response
-      const aiResponse = generateFallbackResponse(text);
+      // If HeyGen fails, try Gemini
+      const geminiResult = await generateGeminiResponse(text);
+      const aiResponse = geminiResult.success && geminiResult.response
+        ? geminiResult.response
+        : generateFallbackResponse(text);
+
       return NextResponse.json({
         success: true,
         fallbackMode: true,
@@ -115,8 +148,7 @@ export async function PUT(request: Request) {
   } catch (error) {
     console.error("Error sending text to avatar:", error);
     // Return fallback response on error
-    const { text } = await request.json().catch(() => ({ text: "" }));
-    const aiResponse = generateFallbackResponse(text || "");
+    const aiResponse = generateFallbackResponse("");
     return NextResponse.json({
       success: true,
       fallbackMode: true,
@@ -125,38 +157,3 @@ export async function PUT(request: Request) {
   }
 }
 
-// Simple fallback response generator for demo purposes
-function generateFallbackResponse(userMessage: string): string {
-  const lowerMessage = userMessage.toLowerCase();
-
-  if (lowerMessage.includes("hello") || lowerMessage.includes("hi") || lowerMessage.includes("hey")) {
-    return "Hello! I'm your AI assistant. How can I help you today with peptide information?";
-  }
-
-  if (lowerMessage.includes("bpc") || lowerMessage.includes("157")) {
-    return "BPC-157 is a peptide that has been studied for its potential healing properties. It's commonly researched for tissue repair and gut health support. Would you like to know more about its applications?";
-  }
-
-  if (lowerMessage.includes("tb-500") || lowerMessage.includes("tb500") || lowerMessage.includes("thymosin")) {
-    return "TB-500 (Thymosin Beta-4) is a peptide known for its research applications in tissue repair and recovery. It's been studied for its potential effects on inflammation and healing processes.";
-  }
-
-  if (lowerMessage.includes("price") || lowerMessage.includes("cost") || lowerMessage.includes("buy")) {
-    return "I'd be happy to help with pricing information. Could you let me know which specific products you're interested in? Our team can provide detailed pricing and availability.";
-  }
-
-  if (lowerMessage.includes("shipping") || lowerMessage.includes("delivery")) {
-    return "We offer various shipping options to meet your needs. Standard delivery typically takes 3-5 business days. For expedited shipping or international orders, please let us know your requirements.";
-  }
-
-  if (lowerMessage.includes("dosage") || lowerMessage.includes("dose") || lowerMessage.includes("how much")) {
-    return "Dosage information should always be discussed with a qualified healthcare professional. Research protocols vary based on the specific peptide and intended use. Would you like me to connect you with our team for more detailed information?";
-  }
-
-  if (lowerMessage.includes("side effect") || lowerMessage.includes("safe")) {
-    return "Safety is paramount. All peptides should only be used under proper guidance. I recommend consulting with a healthcare professional before starting any new protocol. Can I help you with any other questions?";
-  }
-
-  // Default response
-  return `Thank you for your question about "${userMessage.substring(0, 50)}${userMessage.length > 50 ? "..." : ""}". Our team specializes in peptide information and would be happy to assist you further. Is there anything specific you'd like to know?`;
-}

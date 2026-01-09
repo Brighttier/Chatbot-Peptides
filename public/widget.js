@@ -53,12 +53,16 @@
     // Create iframe container - starts collapsed (bubble size only)
     var container = document.createElement("div");
     container.id = "peptide-chat-widget";
+    // Use !important to override any parent styles that might affect positioning
+    // transform:none prevents parent transforms from creating new containing block
+    // contain:layout isolates the element from layout effects
     container.style.cssText =
-      "position:fixed;bottom:16px;" +
-      (config.position === "bottom-left" ? "left:16px;" : "right:16px;") +
+      "position:fixed !important;bottom:16px !important;" +
+      (config.position === "bottom-left" ? "left:16px !important;" : "right:16px !important;") +
       "width:" + BUBBLE_SIZE + "px;height:" + BUBBLE_SIZE + "px;" +
-      "pointer-events:none;z-index:" + config.zIndex + ";" +
-      "transition:width 0.3s ease,height 0.3s ease;";
+      "pointer-events:none;z-index:" + config.zIndex + " !important;" +
+      "transition:width 0.3s ease,height 0.3s ease;" +
+      "transform:none !important;will-change:auto;contain:layout;";
 
     // Create iframe - fills the container
     var iframe = document.createElement("iframe");

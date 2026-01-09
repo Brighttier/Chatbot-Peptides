@@ -169,6 +169,18 @@ export interface HeyGenSettings {
   testStatus?: "success" | "failed";
 }
 
+export interface GeminiSettings {
+  apiKey: string; // Encrypted
+  modelId: string; // e.g., "gemini-2.0-flash-exp", "gemini-1.5-pro"
+  persona: string; // System prompt / AI personality
+  knowledgeBase: string; // Company info, FAQs, product details
+  temperature: number; // 0-2, default 0.7
+  maxTokens: number; // Max output tokens, default 2048
+  isEnabled: boolean;
+  lastTestedAt?: Timestamp;
+  testStatus?: "success" | "failed";
+}
+
 export interface TwilioSettings {
   accountSid: string; // Encrypted
   authToken: string; // Encrypted
@@ -204,6 +216,7 @@ export interface WidgetSettings {
 
 export interface AppSettings {
   heygen: HeyGenSettings;
+  gemini: GeminiSettings;
   twilio: TwilioSettings;
   widget: WidgetSettings;
   updatedAt: Timestamp;

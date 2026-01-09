@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Plug, Palette, Code, MessageSquareText, DollarSign } from "lucide-react";
+import { Users, Plug, Palette, Code, MessageSquareText, DollarSign, Sparkles } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 interface NavItem {
@@ -30,6 +30,12 @@ const navItems: NavItem[] = [
     href: "/admin/settings/integrations",
     label: "Integrations",
     icon: <Plug className="h-4 w-4" />,
+    superAdminOnly: true,
+  },
+  {
+    href: "/admin/settings/gemini-ai",
+    label: "Gemini AI",
+    icon: <Sparkles className="h-4 w-4" />,
     superAdminOnly: true,
   },
   {

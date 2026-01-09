@@ -27,6 +27,15 @@ export async function GET() {
             avatarId: "",
             voiceId: "",
             knowledgeBaseId: "",
+            isEnabled: false, // HeyGen disabled by default, using Gemini instead
+          },
+          gemini: {
+            apiKey: "",
+            modelId: "gemini-2.0-flash-exp",
+            persona: "",
+            knowledgeBase: "",
+            temperature: 0.7,
+            maxTokens: 2048,
             isEnabled: true,
           },
           twilio: {
@@ -61,6 +70,9 @@ export async function GET() {
       if (data?.heygen?.apiKey) {
         data.heygen.apiKey = maskValue(data.heygen.apiKey);
       }
+      if (data?.gemini?.apiKey) {
+        data.gemini.apiKey = maskValue(data.gemini.apiKey);
+      }
       if (data?.twilio?.accountSid) {
         data.twilio.accountSid = maskValue(data.twilio.accountSid);
       }
@@ -92,7 +104,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { heygen, twilio, widget } = body;
+    const { heygen, gemini, twilio, widget } = body;
 
     const db = getAdminFirestore();
     const settingsRef = db.collection("settings").doc("config");
@@ -116,6 +128,18 @@ export async function PUT(request: Request) {
         apiKey: heygen.apiKey && !heygen.apiKey.includes("•")
           ? heygen.apiKey
           : currentSettings?.heygen?.apiKey || "",
+      };
+    }
+
+    // Update Gemini settings if provided
+    if (gemini !== undefined) {
+      updates.gemini = {
+        ...currentSettings?.gemini,
+        ...gemini,
+        // Only update apiKey if a new value is provided (not masked)
+        apiKey: gemini.apiKey && !gemini.apiKey.includes("•")
+          ? gemini.apiKey
+          : currentSettings?.gemini?.apiKey || "",
       };
     }
 
