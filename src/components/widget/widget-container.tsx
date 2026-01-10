@@ -332,7 +332,7 @@ export function WidgetContainer({
             width: widgetWidth,
             height: widgetHeight,
             borderRadius: borderRadius,
-            bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
+            bottom: "0px",
           }}
         >
           {/* Header */}
