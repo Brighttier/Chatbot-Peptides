@@ -116,14 +116,6 @@ export interface SendMessageResponse {
   fallbackMode?: boolean;
 }
 
-// HeyGen API types
-export interface HeyGenResponse {
-  success: boolean;
-  videoUrl?: string;
-  textResponse?: string;
-  error?: string;
-}
-
 // Rep mapping (repId to phone number)
 export interface RepMapping {
   [repId: string]: string;
@@ -158,16 +150,6 @@ export interface SessionUser {
 // ==========================================
 // App Settings Types
 // ==========================================
-
-export interface HeyGenSettings {
-  apiKey: string; // Encrypted
-  avatarId: string;
-  voiceId: string;
-  knowledgeBaseId: string;
-  isEnabled: boolean;
-  lastTestedAt?: Timestamp;
-  testStatus?: "success" | "failed";
-}
 
 export interface GeminiSettings {
   apiKey: string; // Encrypted
@@ -215,7 +197,6 @@ export interface WidgetSettings {
 }
 
 export interface AppSettings {
-  heygen: HeyGenSettings;
   gemini: GeminiSettings;
   twilio: TwilioSettings;
   widget: WidgetSettings;

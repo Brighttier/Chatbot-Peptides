@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   getConversationAdmin,
   addMessageAdmin,
-  updateConversationAdmin,
   getMessagesAdmin,
   updateConversationSaleInfoAdmin,
 } from "@/lib/firebase-admin";
 import { forwardMessageToRep, sendConversationMessage } from "@/lib/twilio";
-import { generateAIResponse, generateTextOnlyResponse } from "@/lib/heygen";
+import { generateGeminiResponse, generateFallbackResponse } from "@/lib/gemini";
 import {
   detectSaleKeywords,
   shouldFlagAsPotentialSale,
@@ -98,55 +97,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(response);
     }
 
-    // AI mode
-    if (conversation.fallbackMode) {
-      // Text-only AI response (fallback mode)
-      const aiResponse = await generateTextOnlyResponse(content);
-      await addMessageAdmin(conversationId, "AI", aiResponse);
-
-      const response: SendMessageResponse = {
-        success: true,
-        messageId,
-        aiResponse,
-        fallbackMode: true,
-      };
-      return NextResponse.json(response);
-    }
-
-    // Try HeyGen API
+    // AI mode - use Gemini for text chat
     const existingMessages = await getMessagesAdmin(conversationId);
-    const conversationContext = existingMessages.map((m) => m.content);
+    const conversationHistory = existingMessages.map((m) => ({
+      role: m.sender === "USER" ? "user" as const : "assistant" as const,
+      content: m.content,
+    }));
 
-    const heygenResponse = await generateAIResponse(content, conversationContext);
+    const geminiResult = await generateGeminiResponse(content, conversationHistory);
 
-    if (!heygenResponse.success) {
-      // HeyGen failed - switch to fallback mode
-      console.error("HeyGen API failed:", heygenResponse.error);
-
-      await updateConversationAdmin(conversationId, { fallbackMode: true });
-
-      // Send fallback message
-      await addMessageAdmin(conversationId, "AI", FALLBACK_MESSAGE);
-
-      const response: SendMessageResponse = {
-        success: true,
-        messageId,
-        aiResponse: FALLBACK_MESSAGE,
-        fallbackMode: true,
-      };
-      return NextResponse.json(response);
+    let aiResponseText: string;
+    if (geminiResult.success && geminiResult.response) {
+      aiResponseText = geminiResult.response;
+    } else {
+      // Gemini failed - use simple fallback
+      console.error("Gemini API failed:", geminiResult.error);
+      aiResponseText = generateFallbackResponse(content);
     }
 
-    // Save successful AI response
-    const aiResponseText =
-      heygenResponse.textResponse || "Thank you for your message.";
     await addMessageAdmin(conversationId, "AI", aiResponseText);
 
     const response: SendMessageResponse = {
       success: true,
       messageId,
       aiResponse: aiResponseText,
-      fallbackMode: false,
+      fallbackMode: true, // Always text-only now
     };
     return NextResponse.json(response);
   } catch (error) {

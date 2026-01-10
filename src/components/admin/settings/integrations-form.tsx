@@ -12,18 +12,10 @@ import {
   EyeOff,
   CheckCircle,
   XCircle,
-  Video,
   MessageSquare,
 } from "lucide-react";
 
 interface IntegrationSettings {
-  heygen: {
-    apiKey: string;
-    avatarId: string;
-    voiceId: string;
-    knowledgeBaseId: string;
-    isEnabled: boolean;
-  };
   twilio: {
     accountSid: string;
     authToken: string;
@@ -33,13 +25,6 @@ interface IntegrationSettings {
 }
 
 const initialSettings: IntegrationSettings = {
-  heygen: {
-    apiKey: "",
-    avatarId: "",
-    voiceId: "",
-    knowledgeBaseId: "",
-    isEnabled: true,
-  },
   twilio: {
     accountSid: "",
     authToken: "",
@@ -56,17 +41,11 @@ export function IntegrationsForm() {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Visibility states for sensitive fields
-  const [showHeygenKey, setShowHeygenKey] = useState(false);
-  const [showHeygenAvatarId, setShowHeygenAvatarId] = useState(false);
-  const [showHeygenVoiceId, setShowHeygenVoiceId] = useState(false);
-  const [showHeygenKnowledgeId, setShowHeygenKnowledgeId] = useState(false);
   const [showTwilioSid, setShowTwilioSid] = useState(false);
   const [showTwilioToken, setShowTwilioToken] = useState(false);
 
   // Test connection states
-  const [testingHeygen, setTestingHeygen] = useState(false);
   const [testingTwilio, setTestingTwilio] = useState(false);
-  const [heygenStatus, setHeygenStatus] = useState<"success" | "error" | null>(null);
   const [twilioStatus, setTwilioStatus] = useState<"success" | "error" | null>(null);
 
   useEffect(() => {
@@ -80,13 +59,6 @@ export function IntegrationsForm() {
       const data = await response.json();
       if (data.settings) {
         setSettings({
-          heygen: {
-            apiKey: data.settings.heygen?.apiKey || "",
-            avatarId: data.settings.heygen?.avatarId || "",
-            voiceId: data.settings.heygen?.voiceId || "",
-            knowledgeBaseId: data.settings.heygen?.knowledgeBaseId || "",
-            isEnabled: data.settings.heygen?.isEnabled ?? true,
-          },
           twilio: {
             accountSid: data.settings.twilio?.accountSid || "",
             authToken: data.settings.twilio?.authToken || "",
@@ -112,7 +84,6 @@ export function IntegrationsForm() {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          heygen: settings.heygen,
           twilio: settings.twilio,
         }),
       });
@@ -128,26 +99,6 @@ export function IntegrationsForm() {
       setError(err instanceof Error ? err.message : "Failed to save settings");
     } finally {
       setIsSaving(false);
-    }
-  };
-
-  const testHeygenConnection = async () => {
-    setTestingHeygen(true);
-    setHeygenStatus(null);
-
-    try {
-      const response = await fetch("/api/admin/settings/test-connection", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ service: "heygen" }),
-      });
-
-      const data = await response.json();
-      setHeygenStatus(data.success ? "success" : "error");
-    } catch {
-      setHeygenStatus("error");
-    } finally {
-      setTestingHeygen(false);
     }
   };
 
@@ -185,7 +136,7 @@ export function IntegrationsForm() {
       <div>
         <h2 className="text-lg font-semibold text-gray-900">Integrations</h2>
         <p className="text-sm text-gray-500">
-          Configure HeyGen AI and Twilio SMS integrations
+          Configure Twilio SMS integration for human chat
         </p>
       </div>
 
@@ -201,194 +152,6 @@ export function IntegrationsForm() {
           {successMessage}
         </div>
       )}
-
-      {/* HeyGen Configuration */}
-      <div className="bg-white rounded-lg border p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-purple-100 flex items-center justify-center">
-              <Video className="h-5 w-5 text-purple-600" />
-            </div>
-            <div>
-              <h3 className="font-medium text-gray-900">HeyGen AI Avatar</h3>
-              <p className="text-sm text-gray-500">Video AI assistant configuration</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            {heygenStatus === "success" && (
-              <span className="flex items-center gap-1 text-green-600 text-sm">
-                <CheckCircle className="h-4 w-4" />
-                Connected
-              </span>
-            )}
-            {heygenStatus === "error" && (
-              <span className="flex items-center gap-1 text-red-600 text-sm">
-                <XCircle className="h-4 w-4" />
-                Failed
-              </span>
-            )}
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={testHeygenConnection}
-              disabled={testingHeygen || !settings.heygen.apiKey}
-            >
-              {testingHeygen ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <>
-                  <Plug className="h-4 w-4 mr-1" />
-                  Test
-                </>
-              )}
-            </Button>
-          </div>
-        </div>
-
-        <div className="grid gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="heygen-api-key">API Key</Label>
-            <div className="relative">
-              <Input
-                id="heygen-api-key"
-                type={showHeygenKey ? "text" : "password"}
-                value={settings.heygen.apiKey}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    heygen: { ...settings.heygen, apiKey: e.target.value },
-                  })
-                }
-                placeholder="Enter your HeyGen API key"
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowHeygenKey(!showHeygenKey)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showHeygenKey ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="heygen-avatar-id">Avatar ID</Label>
-              <div className="relative">
-                <Input
-                  id="heygen-avatar-id"
-                  type={showHeygenAvatarId ? "text" : "password"}
-                  value={settings.heygen.avatarId}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      heygen: { ...settings.heygen, avatarId: e.target.value },
-                    })
-                  }
-                  placeholder="e.g., Elenora_FitnessCoach2_public"
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowHeygenAvatarId(!showHeygenAvatarId)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showHeygenAvatarId ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="heygen-voice-id">Voice ID</Label>
-              <div className="relative">
-                <Input
-                  id="heygen-voice-id"
-                  type={showHeygenVoiceId ? "text" : "password"}
-                  value={settings.heygen.voiceId}
-                  onChange={(e) =>
-                    setSettings({
-                      ...settings,
-                      heygen: { ...settings.heygen, voiceId: e.target.value },
-                    })
-                  }
-                  placeholder="e.g., cef3bc4e0a84424c..."
-                  className="pr-10"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowHeygenVoiceId(!showHeygenVoiceId)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                >
-                  {showHeygenVoiceId ? (
-                    <EyeOff className="h-4 w-4" />
-                  ) : (
-                    <Eye className="h-4 w-4" />
-                  )}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="heygen-knowledge-id">Knowledge Base ID</Label>
-            <div className="relative">
-              <Input
-                id="heygen-knowledge-id"
-                type={showHeygenKnowledgeId ? "text" : "password"}
-                value={settings.heygen.knowledgeBaseId}
-                onChange={(e) =>
-                  setSettings({
-                    ...settings,
-                    heygen: { ...settings.heygen, knowledgeBaseId: e.target.value },
-                  })
-                }
-                placeholder="e.g., daddfb516e7a44d1..."
-                className="pr-10"
-              />
-              <button
-                type="button"
-                onClick={() => setShowHeygenKnowledgeId(!showHeygenKnowledgeId)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showHeygenKnowledgeId ? (
-                  <EyeOff className="h-4 w-4" />
-                ) : (
-                  <Eye className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500">
-              Knowledge base for AI responses. Find this in your HeyGen dashboard.
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <input
-              type="checkbox"
-              id="heygen-enabled"
-              checked={settings.heygen.isEnabled}
-              onChange={(e) =>
-                setSettings({
-                  ...settings,
-                  heygen: { ...settings.heygen, isEnabled: e.target.checked },
-                })
-              }
-              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-            />
-            <Label htmlFor="heygen-enabled" className="text-sm font-normal">
-              Enable HeyGen AI Avatar
-            </Label>
-          </div>
-        </div>
-      </div>
 
       {/* Twilio Configuration */}
       <div className="bg-white rounded-lg border p-6 space-y-4">

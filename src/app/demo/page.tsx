@@ -273,11 +273,11 @@ export default function DemoPage() {
               <span className="text-2xl">🤖</span>
             </div>
             <h3 className="font-semibold text-gray-900 mb-2">
-              AI Avatar Option
+              AI Chat Option
             </h3>
             <p className="text-gray-600 text-sm">
-              Users can choose to chat with a live AI avatar powered by HeyGen
-              for instant responses.
+              Users can choose to chat with an AI assistant powered by Gemini
+              for instant, intelligent responses.
             </p>
           </div>
           <div className="bg-white rounded-xl p-6 shadow-sm border">

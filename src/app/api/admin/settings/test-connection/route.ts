@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth-admin";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 
-// POST - Test connection to HeyGen or Twilio
+// POST - Test connection to Gemini or Twilio
 export async function POST(request: Request) {
   try {
     const authResult = await requireRole(["super_admin", "admin"]);
@@ -16,7 +16,7 @@ export async function POST(request: Request) {
 
     const { service } = await request.json();
 
-    if (!service || !["heygen", "gemini", "twilio"].includes(service)) {
+    if (!service || !["gemini", "twilio"].includes(service)) {
       return NextResponse.json(
         { error: "Invalid service specified" },
         { status: 400 }
@@ -27,44 +27,6 @@ export async function POST(request: Request) {
     const db = getAdminFirestore();
     const settingsDoc = await db.collection("settings").doc("config").get();
     const settings = settingsDoc.exists ? settingsDoc.data() : null;
-
-    if (service === "heygen") {
-      const apiKey = settings?.heygen?.apiKey || process.env.HEYGEN_API_KEY;
-
-      if (!apiKey) {
-        return NextResponse.json({
-          success: false,
-          error: "HeyGen API key not configured",
-        });
-      }
-
-      try {
-        // Test HeyGen API by fetching avatars list
-        const response = await fetch("https://api.heygen.com/v2/avatars", {
-          headers: {
-            "X-Api-Key": apiKey,
-          },
-        });
-
-        if (response.ok) {
-          return NextResponse.json({
-            success: true,
-            message: "HeyGen connection successful",
-          });
-        } else {
-          const error = await response.text();
-          return NextResponse.json({
-            success: false,
-            error: `HeyGen API error: ${error}`,
-          });
-        }
-      } catch (err) {
-        return NextResponse.json({
-          success: false,
-          error: `Failed to connect to HeyGen: ${err instanceof Error ? err.message : "Unknown error"}`,
-        });
-      }
-    }
 
     if (service === "gemini") {
       const apiKey = settings?.gemini?.apiKey || process.env.GEMINI_API_KEY;

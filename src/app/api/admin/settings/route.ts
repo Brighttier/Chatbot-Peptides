@@ -22,13 +22,6 @@ export async function GET() {
       // Return default settings if none exist
       return NextResponse.json({
         settings: {
-          heygen: {
-            apiKey: "",
-            avatarId: "",
-            voiceId: "",
-            knowledgeBaseId: "",
-            isEnabled: false, // HeyGen disabled by default, using Gemini instead
-          },
           gemini: {
             apiKey: "",
             modelId: "gemini-2.0-flash-exp",
@@ -67,9 +60,6 @@ export async function GET() {
 
     // Mask sensitive fields for non-super_admin users
     if (authResult.user.role !== "super_admin") {
-      if (data?.heygen?.apiKey) {
-        data.heygen.apiKey = maskValue(data.heygen.apiKey);
-      }
       if (data?.gemini?.apiKey) {
         data.gemini.apiKey = maskValue(data.gemini.apiKey);
       }
@@ -104,7 +94,7 @@ export async function PUT(request: Request) {
     }
 
     const body = await request.json();
-    const { heygen, gemini, twilio, widget } = body;
+    const { gemini, twilio, widget } = body;
 
     const db = getAdminFirestore();
     const settingsRef = db.collection("settings").doc("config");
@@ -118,18 +108,6 @@ export async function PUT(request: Request) {
       updatedAt: FieldValue.serverTimestamp(),
       updatedBy: authResult.user.uid,
     };
-
-    // Update HeyGen settings if provided
-    if (heygen !== undefined) {
-      updates.heygen = {
-        ...currentSettings?.heygen,
-        ...heygen,
-        // Only update apiKey if a new value is provided (not masked)
-        apiKey: heygen.apiKey && !heygen.apiKey.includes("•")
-          ? heygen.apiKey
-          : currentSettings?.heygen?.apiKey || "",
-      };
-    }
 
     // Update Gemini settings if provided
     if (gemini !== undefined) {
