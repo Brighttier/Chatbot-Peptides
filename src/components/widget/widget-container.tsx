@@ -7,7 +7,6 @@ import { WidgetPhoneInput, CustomerData, IntakeAnswers } from "./widget-phone-in
 import { WidgetIntakeQuestions } from "./widget-intake-questions";
 import { WidgetLiveChat } from "./widget-live-chat";
 import { MedicalDisclaimer } from "@/components/chat/medical-disclaimer";
-import { StreamingAvatar } from "@/components/chat/streaming-avatar";
 import { X, ArrowLeft } from "lucide-react";
 
 type WidgetStep =
@@ -15,7 +14,7 @@ type WidgetStep =
   | "mode-selection"
   | "disclaimer"
   | "ai-phone"
-  | "ai-avatar"
+  | "ai-chat"
   | "transfer-intake"
   | "human-phone"
   | "human-intake"
@@ -149,7 +148,7 @@ export function WidgetContainer({
         }
 
         setConversationId(responseData.conversationId);
-        setStep("ai-avatar");
+        setStep("ai-chat");
       } catch (error) {
         console.error("Failed to init AI chat:", error);
         throw error;
@@ -260,10 +259,10 @@ export function WidgetContainer({
       setPendingCustomerData(null);
     } else if (step === "ai-phone") {
       setStep("disclaimer");
-    } else if (step === "ai-avatar") {
+    } else if (step === "ai-chat") {
       setStep("ai-phone");
     } else if (step === "transfer-intake") {
-      setStep("ai-avatar");
+      setStep("ai-chat");
     } else if (step === "human-chat") {
       setStep("mode-selection");
       setChatMode(null);
@@ -294,6 +293,8 @@ export function WidgetContainer({
         return "Important Notice";
       case "ai-phone":
         return "Connect with us";
+      case "ai-chat":
+        return "AI Assistant";
       case "transfer-intake":
         return "Talk to Human";
       case "human-phone":
@@ -334,31 +335,29 @@ export function WidgetContainer({
             bottom: "calc(env(safe-area-inset-bottom, 0px) + 80px)",
           }}
         >
-          {/* Header - shown on all steps except ai-avatar */}
-          {step !== "ai-avatar" && (
-            <div
-              className="flex items-center justify-between px-4 py-3 text-white shrink-0"
-              style={{ backgroundColor: primaryColor }}
-            >
-              <div className="flex items-center gap-2">
-                {step !== "mode-selection" && (
-                  <button
-                    onClick={handleBack}
-                    className="p-1 rounded hover:bg-white/20 transition-colors"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
-                  </button>
-                )}
-                <h2 className="font-semibold text-sm">{getHeaderTitle()}</h2>
-              </div>
-              <button
-                onClick={handleClose}
-                className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
-              >
-                <X className="w-4 h-4" />
-              </button>
+          {/* Header */}
+          <div
+            className="flex items-center justify-between px-4 py-3 text-white shrink-0"
+            style={{ backgroundColor: primaryColor }}
+          >
+            <div className="flex items-center gap-2">
+              {step !== "mode-selection" && (
+                <button
+                  onClick={handleBack}
+                  className="p-1 rounded hover:bg-white/20 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                </button>
+              )}
+              <h2 className="font-semibold text-sm">{getHeaderTitle()}</h2>
             </div>
-          )}
+            <button
+              onClick={handleClose}
+              className="p-1.5 rounded-full hover:bg-white/20 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
 
           {/* Content Area - takes remaining space */}
           <div className="flex-1 overflow-hidden flex flex-col min-h-0">
@@ -377,12 +376,12 @@ export function WidgetContainer({
               />
             )}
 
-            {step === "ai-avatar" && conversationId && (
-              <StreamingAvatar
+            {step === "ai-chat" && conversationId && (
+              <WidgetLiveChat
                 conversationId={conversationId}
-                onClose={handleBackToModes}
+                chatMode="AI"
+                fallbackMode={false}
                 onTransferToHuman={handleTransferToHuman}
-                welcomeMessage={welcomeMessage}
               />
             )}
 

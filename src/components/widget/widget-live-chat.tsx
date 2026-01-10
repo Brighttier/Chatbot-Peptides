@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, User, Bot, Loader2, UserCircle } from "lucide-react";
+import { Send, User, Bot, Loader2, UserCircle, PhoneForwarded } from "lucide-react";
 import { subscribeToMessages } from "@/lib/firebase";
 import type { Message, ChatMode } from "@/types";
 import { Timestamp } from "firebase/firestore";
@@ -12,6 +12,7 @@ interface WidgetLiveChatProps {
   conversationId: string;
   chatMode: ChatMode;
   fallbackMode: boolean;
+  onTransferToHuman?: () => void;
 }
 
 interface DisplayMessage {
@@ -25,6 +26,7 @@ export function WidgetLiveChat({
   conversationId,
   chatMode,
   fallbackMode: initialFallback,
+  onTransferToHuman,
 }: WidgetLiveChatProps) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -210,6 +212,19 @@ export function WidgetLiveChat({
       {error && (
         <div className="px-3 py-1.5 bg-red-50 text-red-600 text-xs text-center">
           {error}
+        </div>
+      )}
+
+      {/* Transfer to Human Button (AI mode only) */}
+      {chatMode === "AI" && onTransferToHuman && (
+        <div className="px-3 py-2 border-t bg-gray-50">
+          <button
+            onClick={onTransferToHuman}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 text-sm text-blue-600 hover:text-blue-700 hover:bg-blue-50 rounded-lg transition-colors"
+          >
+            <PhoneForwarded className="h-4 w-4" />
+            Talk to a Human Representative
+          </button>
         </div>
       )}
 

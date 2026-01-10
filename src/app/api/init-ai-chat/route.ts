@@ -70,7 +70,7 @@ export async function POST(request: NextRequest) {
           await addMessageAdmin(
             existingConversation.id!,
             "AI",
-            "Welcome back! How can I assist you today?"
+            "Welcome back! I'm Jon, your dedicated protocol specialist. How can I assist you on your journey today?"
           );
         }
       }
@@ -99,11 +99,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Add welcome message from AI
+    // Add welcome message from AI (Jon persona)
     await addMessageAdmin(
       conversationId,
       "AI",
-      "Hello! I'm your AI assistant. How can I help you today with your peptide needs?"
+      "Hello! I'm Jon, your dedicated protocol specialist, and I'm thrilled to help — how can I assist you on your journey today?"
     );
 
     // Send email notification for all new conversations
