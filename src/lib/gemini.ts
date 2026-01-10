@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { getAdminDb } from "./firebase-admin";
+import { getAdminFirestore } from "./firebase-admin";
 
 // Gemini model options
 export const GEMINI_MODELS = [
@@ -71,7 +71,7 @@ interface GeminiResponse {
 async function getGeminiSettings(): Promise<GeminiSettings | null> {
   try {
     // First try to get settings from Firestore
-    const db = getAdminDb();
+    const db = getAdminFirestore();
     const settingsDoc = await db.collection("settings").doc("config").get();
 
     if (settingsDoc.exists) {
