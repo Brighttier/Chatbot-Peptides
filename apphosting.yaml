@@ -35,3 +35,5 @@ env:
     secret: DEFAULT_REP_PHONE_NUMBER
   - variable: RESEND_API_KEY
     secret: RESEND_API_KEY
+  - variable: GEMINI_API_KEY
+    secret: GEMINI_API_KEY

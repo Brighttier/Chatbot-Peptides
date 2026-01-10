@@ -66,63 +66,55 @@ interface GeminiResponse {
 }
 
 /**
- * Get Gemini settings from Firestore or environment variables
+ * Get Gemini settings - API key from environment (Secret Manager), other settings from Firestore
  */
 async function getGeminiSettings(): Promise<GeminiSettings | null> {
+  // API key must come from environment variable (Google Secret Manager in production)
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    console.error("GEMINI_API_KEY not found in environment variables");
+    return null;
+  }
+
+  // Try to get additional settings (persona, model, etc.) from Firestore
   try {
-    // First try to get settings from Firestore
     const db = getAdminFirestore();
     const settingsDoc = await db.collection("settings").doc("config").get();
 
     if (settingsDoc.exists) {
       const data = settingsDoc.data();
-      if (data?.gemini?.isEnabled && data?.gemini?.apiKey) {
-        return {
-          apiKey: data.gemini.apiKey,
-          modelId: data.gemini.modelId || DEFAULT_MODEL,
-          persona: data.gemini.persona || DEFAULT_PERSONA,
-          knowledgeBase: data.gemini.knowledgeBase || DEFAULT_KNOWLEDGE_BASE,
-          temperature: data.gemini.temperature ?? DEFAULT_TEMPERATURE,
-          maxTokens: data.gemini.maxTokens || DEFAULT_MAX_TOKENS,
-          isEnabled: data.gemini.isEnabled,
-        };
+      const geminiSettings = data?.gemini;
+
+      // Check if Gemini is disabled in settings
+      if (geminiSettings?.isEnabled === false) {
+        return null;
       }
-    }
 
-    // Fallback to environment variables
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return null;
+      return {
+        apiKey, // Always from env var / Secret Manager
+        modelId: geminiSettings?.modelId || DEFAULT_MODEL,
+        persona: geminiSettings?.persona || DEFAULT_PERSONA,
+        knowledgeBase: geminiSettings?.knowledgeBase || DEFAULT_KNOWLEDGE_BASE,
+        temperature: geminiSettings?.temperature ?? DEFAULT_TEMPERATURE,
+        maxTokens: geminiSettings?.maxTokens || DEFAULT_MAX_TOKENS,
+        isEnabled: true,
+      };
     }
-
-    return {
-      apiKey,
-      modelId: process.env.GEMINI_MODEL || DEFAULT_MODEL,
-      persona: DEFAULT_PERSONA,
-      knowledgeBase: DEFAULT_KNOWLEDGE_BASE,
-      temperature: DEFAULT_TEMPERATURE,
-      maxTokens: DEFAULT_MAX_TOKENS,
-      isEnabled: true,
-    };
   } catch (error) {
-    console.error("Error fetching Gemini settings:", error);
-
-    // Last resort: use environment variable
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return null;
-    }
-
-    return {
-      apiKey,
-      modelId: process.env.GEMINI_MODEL || DEFAULT_MODEL,
-      persona: DEFAULT_PERSONA,
-      knowledgeBase: DEFAULT_KNOWLEDGE_BASE,
-      temperature: DEFAULT_TEMPERATURE,
-      maxTokens: DEFAULT_MAX_TOKENS,
-      isEnabled: true,
-    };
+    console.error("Error fetching Gemini settings from Firestore:", error);
+    // Continue with defaults if Firestore fails
   }
+
+  // Use defaults with API key from environment
+  return {
+    apiKey,
+    modelId: process.env.GEMINI_MODEL || DEFAULT_MODEL,
+    persona: DEFAULT_PERSONA,
+    knowledgeBase: DEFAULT_KNOWLEDGE_BASE,
+    temperature: DEFAULT_TEMPERATURE,
+    maxTokens: DEFAULT_MAX_TOKENS,
+    isEnabled: true,
+  };
 }
 
 /**
@@ -215,18 +207,13 @@ INSTRUCTIONS:
  */
 export async function testGeminiConnection(apiKey?: string): Promise<{ success: boolean; message: string }> {
   try {
-    // Use provided API key or get from settings
-    let key = apiKey;
-
-    if (!key) {
-      const settings = await getGeminiSettings();
-      key = settings?.apiKey;
-    }
+    // Use provided API key or get from environment (Secret Manager)
+    const key = apiKey || process.env.GEMINI_API_KEY;
 
     if (!key) {
       return {
         success: false,
-        message: "Gemini API key not configured",
+        message: "Gemini API key not configured. Add GEMINI_API_KEY to Google Secret Manager.",
       };
     }
 
