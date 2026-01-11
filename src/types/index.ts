@@ -49,6 +49,8 @@ export interface Conversation {
   saleId?: string;
   lastSaleKeywordAt?: Timestamp;
   saleKeywordsCount?: number;
+  // Typing indicator
+  typingUsers?: string[]; // Array of user IDs currently typing
 }
 
 // Read status tracking per user per conversation
@@ -75,6 +77,14 @@ export interface Message {
   sender: MessageSender;
   content: string;
   timestamp: Timestamp;
+  // Read receipt fields (WhatsApp-style)
+  deliveredAt?: Timestamp | null;
+  readAt?: Timestamp | null;
+  deliveredBy?: string[];
+  readBy?: string[];
+  // Edit tracking
+  edited?: boolean;
+  editedAt?: Timestamp | null;
 }
 
 // API Request/Response types

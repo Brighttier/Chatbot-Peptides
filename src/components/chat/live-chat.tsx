@@ -6,9 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, User, Bot, Loader2, UserCircle, AlertCircle, X } from "lucide-react";
-import { subscribeToMessages } from "@/lib/firebase";
+import { subscribeToMessages, markMessagesAsDelivered, markMessagesAsRead, subscribeToConversation } from "@/lib/firebase";
 import type { Message, ChatMode } from "@/types";
 import { Timestamp } from "firebase/firestore";
+import { MessageStatusIcon, type MessageStatus } from "./message-status-icon";
+import { useMessageReadTracking } from "@/hooks/useMessageReadTracking";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 
 interface LiveChatProps {
   conversationId: string;
@@ -21,6 +24,12 @@ interface DisplayMessage {
   content: string;
   sender: "USER" | "ADMIN" | "AI";
   timestamp: Date;
+  deliveredAt?: Date | null;
+  readAt?: Date | null;
+  deliveredBy?: string[];
+  readBy?: string[];
+  edited?: boolean;
+  editedAt?: Date | null;
 }
 
 export function LiveChat({
@@ -35,8 +44,14 @@ export function LiveChat({
   const [error, setError] = useState<string | null>(null);
   const [isEnding, setIsEnding] = useState(false);
   const [chatEnded, setChatEnded] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Initialize hooks for typing indicators and viewport-based read tracking
+  const userId = "USER";
+  const { handleTyping, clearTypingStatus } = useTypingIndicator(conversationId, userId);
+  const { observeMessage } = useMessageReadTracking(conversationId, userId, messages);
 
   // Subscribe to real-time message updates
   useEffect(() => {
@@ -50,11 +65,46 @@ export function LiveChat({
           m.timestamp instanceof Timestamp
             ? m.timestamp.toDate()
             : new Date(m.timestamp as unknown as number),
+        deliveredAt: m.deliveredAt instanceof Timestamp ? m.deliveredAt.toDate() : null,
+        readAt: m.readAt instanceof Timestamp ? m.readAt.toDate() : null,
+        deliveredBy: m.deliveredBy || [],
+        readBy: m.readBy || [],
+        edited: m.edited || false,
+        editedAt: m.editedAt instanceof Timestamp ? m.editedAt.toDate() : null,
       }));
       setMessages(displayMessages);
     });
 
     return () => unsubscribe();
+  }, [conversationId]);
+
+  // Subscribe to conversation for typing indicators
+  useEffect(() => {
+    const unsubscribe = subscribeToConversation(conversationId, (conversation) => {
+      setTypingUsers(conversation.typingUsers || []);
+    });
+
+    return () => unsubscribe();
+  }, [conversationId]);
+
+  // Mark messages as delivered when chat opens
+  useEffect(() => {
+    markMessagesAsDelivered(conversationId, "USER");
+  }, [conversationId]);
+
+  // Mark messages as read when window has focus
+  useEffect(() => {
+    const handleFocus = () => {
+      markMessagesAsRead(conversationId, "USER");
+    };
+
+    // Mark as read immediately
+    handleFocus();
+
+    // Listen for focus events
+    window.addEventListener("focus", handleFocus);
+
+    return () => window.removeEventListener("focus", handleFocus);
   }, [conversationId]);
 
   // Auto-scroll to bottom
@@ -73,6 +123,20 @@ export function LiveChat({
     return `${displayHours}:${displayMinutes} ${ampm}`;
   };
 
+  // Get message status for read receipts
+  const getMessageStatus = (message: DisplayMessage): MessageStatus => {
+    // Determine recipient ID based on sender
+    const recipientId = message.sender === "USER" ? "ADMIN" : "USER";
+
+    if (message.readBy?.includes(recipientId)) {
+      return "read";
+    }
+    if (message.deliveredBy?.includes(recipientId)) {
+      return "delivered";
+    }
+    return "sent";
+  };
+
   const handleSend = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed) return;
@@ -80,6 +144,9 @@ export function LiveChat({
     setInputValue("");
     setIsTyping(true);
     setError(null);
+
+    // Clear typing indicator immediately when sending
+    await clearTypingStatus();
 
     try {
       const response = await fetch("/api/send-message", {
@@ -250,6 +317,9 @@ export function LiveChat({
               {messages.map((message) => (
                 <motion.div
                   key={message.id}
+                  ref={observeMessage}
+                  data-message-id={message.id}
+                  data-message-sender={message.sender}
                   layout
                   initial={{ opacity: 0, y: 20, scale: 0.95 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -291,20 +361,33 @@ export function LiveChat({
                     >
                       <p className="text-base sm:text-sm leading-relaxed">{message.content}</p>
                     </motion.div>
-                    <time
-                      className="mt-1.5 px-1 text-sm sm:text-xs text-muted-foreground"
-                      dateTime={message.timestamp.toISOString()}
-                    >
-                      {formatTime(message.timestamp)}
-                    </time>
+                    <div className="flex items-center gap-1 mt-1.5 px-1">
+                      <time
+                        className="text-sm sm:text-xs text-muted-foreground"
+                        dateTime={message.timestamp.toISOString()}
+                      >
+                        {formatTime(message.timestamp)}
+                      </time>
+                      {/* Show edited indicator */}
+                      {message.edited && (
+                        <span className="text-sm sm:text-xs text-muted-foreground italic">edited</span>
+                      )}
+                      {/* Show read receipts only for user's own messages */}
+                      {message.sender === "USER" && (
+                        <MessageStatusIcon
+                          status={getMessageStatus(message)}
+                          readAt={message.readAt}
+                        />
+                      )}
+                    </div>
                   </div>
                 </motion.div>
               ))}
             </AnimatePresence>
 
-            {/* Typing Indicator */}
+            {/* Typing Indicator - for API response wait or other user typing */}
             <AnimatePresence>
-              {isTyping && (
+              {(isTyping || typingUsers.some(id => id !== userId)) && (
                 <motion.div
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -372,7 +455,10 @@ export function LiveChat({
               <Input
                 ref={inputRef}
                 value={inputValue}
-                onChange={(e) => setInputValue(e.target.value)}
+                onChange={(e) => {
+                  setInputValue(e.target.value);
+                  handleTyping();
+                }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
                 className="flex-1 rounded-full border-2 px-4 focus-visible:ring-2 focus-visible:ring-primary"

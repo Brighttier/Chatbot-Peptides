@@ -1,5 +1,5 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
-import { getFirestore, Firestore, Timestamp } from "firebase-admin/firestore";
+import { getFirestore, Firestore, Timestamp, FieldValue } from "firebase-admin/firestore";
 import type {
   Conversation,
   Message,
@@ -237,6 +237,11 @@ export async function addMessageAdmin(
       sender,
       content,
       timestamp: Timestamp.now(),
+      // Initialize read receipt fields
+      deliveredAt: null,
+      readAt: null,
+      deliveredBy: [],
+      readBy: [],
     });
 
   return docRef.id;
@@ -906,4 +911,39 @@ export async function getConversationMessagesAdmin(
         ...doc.data(),
       }) as Message
   );
+}
+
+/**
+ * Update (edit) a message - Admin only
+ */
+export async function updateMessageAdmin(
+  conversationId: string,
+  messageId: string,
+  newContent: string
+): Promise<void> {
+  const db = getAdminFirestore();
+  const messageRef = db
+    .collection("conversations")
+    .doc(conversationId)
+    .collection("messages")
+    .doc(messageId);
+
+  const messageDoc = await messageRef.get();
+
+  if (!messageDoc.exists) {
+    throw new Error("Message not found");
+  }
+
+  const messageData = messageDoc.data();
+
+  // Only allow editing admin messages
+  if (messageData?.sender !== "ADMIN") {
+    throw new Error("Only admin messages can be edited");
+  }
+
+  await messageRef.update({
+    content: newContent,
+    edited: true,
+    editedAt: FieldValue.serverTimestamp(),
+  });
 }

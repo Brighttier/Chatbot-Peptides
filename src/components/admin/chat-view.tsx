@@ -4,9 +4,12 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2, DollarSign, Plus, Edit2 } from "lucide-react";
-import { subscribeToMessages } from "@/lib/firebase";
+import { subscribeToMessages, markMessagesAsDelivered, markMessagesAsRead, subscribeToConversation } from "@/lib/firebase";
+import { useMessageReadTracking } from "@/hooks/useMessageReadTracking";
+import { useTypingIndicator } from "@/hooks/useTypingIndicator";
 import type { Message, Conversation } from "@/types";
 import { Timestamp } from "firebase/firestore";
+import { MessageStatusIcon, type MessageStatus } from "../chat/message-status-icon";
 import { MarkSaleDialog } from "./sales/mark-sale-dialog";
 import { determineChannel } from "@/lib/sale-detection";
 import { useAuth } from "@/contexts/auth-context";
@@ -25,6 +28,12 @@ interface DisplayMessage {
   content: string;
   sender: "USER" | "ADMIN" | "AI";
   timestamp: Date;
+  deliveredAt?: Date | null;
+  readAt?: Date | null;
+  deliveredBy?: string[];
+  readBy?: string[];
+  edited?: boolean;
+  editedAt?: Date | null;
 }
 
 // Canned responses data
@@ -45,9 +54,10 @@ export function ChatView({
   onToggleRightPanel,
   onConversationUpdate,
 }: ChatViewProps) {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const isSuperAdmin = hasRole(["super_admin"]);
   const canDelete = hasRole(["super_admin", "admin"]); // Only admin and super_admin can delete
+  const adminUserId = user?.uid || "ADMIN"; // Use user ID for read receipts, fallback to "ADMIN"
 
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
@@ -65,9 +75,23 @@ export function ChatView({
   const [cannedFormData, setCannedFormData] = useState({ title: "", shortcut: "/", content: "", category: "General" });
   const [cannedFormError, setCannedFormError] = useState<string | null>(null);
   const [isSavingCanned, setIsSavingCanned] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const cannedMenuRef = useRef<HTMLDivElement>(null);
+
+  // Initialize hooks for typing and read tracking
+  const { handleTyping, clearTypingStatus } = useTypingIndicator(
+    conversation?.id || "",
+    adminUserId
+  );
+  const { observeMessage } = useMessageReadTracking(
+    conversation?.id || "",
+    adminUserId,
+    messages
+  );
 
   // Fetch canned responses from API
   const fetchCannedResponses = useCallback(async () => {
@@ -170,6 +194,43 @@ export function ChatView({
     setIsAddingCannedResponse(false);
     setEditingCannedResponse(null);
     setCannedFormError(null);
+  };
+
+  // Message editing handlers
+  const handleEditMessage = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId);
+    setEditContent(currentContent);
+  };
+
+  const handleSaveEdit = async (messageId: string) => {
+    if (!editContent.trim()) return;
+
+    try {
+      const response = await fetch("/api/admin/edit-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId: conversation?.id,
+          messageId,
+          newContent: editContent,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to edit message");
+      }
+
+      setEditingMessageId(null);
+      setEditContent("");
+    } catch (error) {
+      console.error("Error editing message:", error);
+      // Could show a toast notification here
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+    setEditContent("");
   };
 
   // Filter canned responses based on search or shortcut typing
@@ -295,6 +356,12 @@ export function ChatView({
           m.timestamp instanceof Timestamp
             ? m.timestamp.toDate()
             : new Date(m.timestamp as unknown as number),
+        deliveredAt: m.deliveredAt instanceof Timestamp ? m.deliveredAt.toDate() : null,
+        readAt: m.readAt instanceof Timestamp ? m.readAt.toDate() : null,
+        deliveredBy: m.deliveredBy || [],
+        readBy: m.readBy || [],
+        edited: m.edited || false,
+        editedAt: m.editedAt instanceof Timestamp ? m.editedAt.toDate() : null,
       }));
     },
     []
@@ -314,6 +381,41 @@ export function ChatView({
     return () => unsubscribe();
   }, [conversation?.id, convertMessages]);
 
+  // Subscribe to conversation for typing indicators
+  useEffect(() => {
+    if (!conversation?.id) return;
+
+    const unsubscribe = subscribeToConversation(conversation.id, (conv) => {
+      setTypingUsers(conv.typingUsers || []);
+    });
+
+    return () => unsubscribe();
+  }, [conversation?.id]);
+
+  // Mark messages as delivered when conversation is selected
+  useEffect(() => {
+    if (conversation?.id && adminUserId) {
+      markMessagesAsDelivered(conversation.id, adminUserId);
+    }
+  }, [conversation?.id, adminUserId]);
+
+  // Mark messages as read when window has focus
+  useEffect(() => {
+    if (!conversation?.id || !adminUserId) return;
+
+    const handleFocus = () => {
+      markMessagesAsRead(conversation.id!, adminUserId);
+    };
+
+    // Mark as read immediately
+    handleFocus();
+
+    // Listen for focus events
+    window.addEventListener("focus", handleFocus);
+
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [conversation?.id, adminUserId]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     if (scrollAreaRef.current) {
@@ -329,12 +431,31 @@ export function ChatView({
     });
   };
 
+  // Get message status for read receipts
+  const getMessageStatus = (message: DisplayMessage): MessageStatus => {
+    // Determine recipient ID based on sender
+    // For admin messages, recipient is USER
+    // For user messages, recipient is ADMIN (current admin)
+    const recipientId = message.sender === "ADMIN" ? "USER" : adminUserId;
+
+    if (message.readBy?.includes(recipientId)) {
+      return "read";
+    }
+    if (message.deliveredBy?.includes(recipientId)) {
+      return "delivered";
+    }
+    return "sent";
+  };
+
   const handleSend = async () => {
     const trimmed = inputValue.trim();
     if (!trimmed || !conversation?.id) return;
 
     setInputValue("");
     setIsSending(true);
+
+    // Clear typing indicator immediately when sending
+    await clearTypingStatus();
 
     try {
       const response = await fetch("/api/admin/send-message", {
@@ -606,7 +727,10 @@ export function ChatView({
             messages.map((message) => (
               <div
                 key={message.id}
-                className={`flex gap-3 ${
+                ref={observeMessage}
+                data-message-id={message.id}
+                data-message-sender={message.sender}
+                className={`flex gap-3 group ${
                   message.sender === "USER" ? "flex-row" : "flex-row-reverse"
                 }`}
               >
@@ -627,7 +751,7 @@ export function ChatView({
                   }`}
                 >
                   <div
-                    className={`rounded-2xl px-4 py-2 ${
+                    className={`rounded-2xl px-4 py-2 relative ${
                       message.sender === "USER"
                         ? "bg-gray-100 text-gray-900"
                         : message.sender === "ADMIN"
@@ -635,11 +759,57 @@ export function ChatView({
                         : "bg-purple-500 text-white"
                     }`}
                   >
-                    <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+                    {message.sender === "ADMIN" && editingMessageId === message.id ? (
+                      <div className="flex gap-2 items-center">
+                        <input
+                          value={editContent}
+                          onChange={(e) => setEditContent(e.target.value)}
+                          className="flex-1 px-3 py-1 border rounded text-sm text-gray-900"
+                          autoFocus
+                        />
+                        <button
+                          onClick={() => handleSaveEdit(message.id)}
+                          className="text-xs px-2 py-1 bg-green-500 hover:bg-green-600 text-white rounded"
+                        >
+                          Save
+                        </button>
+                        <button
+                          onClick={handleCancelEdit}
+                          className="text-xs px-2 py-1 bg-gray-400 hover:bg-gray-500 text-white rounded"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm whitespace-pre-wrap flex-1">{message.content}</p>
+                        {message.sender === "ADMIN" && (
+                          <button
+                            onClick={() => handleEditMessage(message.id, message.content)}
+                            className="opacity-0 group-hover:opacity-100 text-xs text-white/70 hover:text-white transition-opacity"
+                            title="Edit message"
+                          >
+                            Edit
+                          </button>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <span className="mt-1 text-xs text-gray-400">
-                    {formatTime(message.timestamp)}
-                  </span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-xs text-gray-400">
+                      {formatTime(message.timestamp)}
+                    </span>
+                    {message.edited && (
+                      <span className="text-xs text-gray-400 italic">edited</span>
+                    )}
+                    {/* Show read receipts only for admin's own messages */}
+                    {message.sender === "ADMIN" && (
+                      <MessageStatusIcon
+                        status={getMessageStatus(message)}
+                        readAt={message.readAt}
+                      />
+                    )}
+                  </div>
                 </div>
               </div>
             ))
@@ -822,7 +992,10 @@ export function ChatView({
           <Input
             ref={inputRef}
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={(e) => {
+              setInputValue(e.target.value);
+              handleTyping();
+            }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message or / for quick responses..."
             className="flex-1 rounded-full border-gray-200 bg-white px-4"

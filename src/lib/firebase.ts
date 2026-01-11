@@ -16,6 +16,10 @@ import {
   Firestore,
   DocumentData,
   QueryDocumentSnapshot,
+  writeBatch,
+  serverTimestamp,
+  arrayUnion,
+  arrayRemove,
 } from "firebase/firestore";
 import type { Conversation, Message, MessageSender } from "@/types";
 
@@ -75,6 +79,12 @@ function docToMessage(doc: QueryDocumentSnapshot<DocumentData>): Message {
     sender: data.sender,
     content: data.content,
     timestamp: data.timestamp,
+    deliveredAt: data.deliveredAt,
+    readAt: data.readAt,
+    deliveredBy: data.deliveredBy || [],
+    readBy: data.readBy || [],
+    edited: data.edited || false,
+    editedAt: data.editedAt || null,
   };
 }
 
@@ -160,6 +170,11 @@ export async function addMessage(
     sender,
     content,
     timestamp: Timestamp.now(),
+    // Initialize read receipt fields
+    deliveredAt: null,
+    readAt: null,
+    deliveredBy: [],
+    readBy: [],
   });
 
   return docRef.id;
@@ -217,4 +232,140 @@ export async function findActiveConversationByRepPhone(
   }
 
   return docToConversation(snapshot.docs[0]);
+}
+
+/**
+ * Mark all undelivered messages from other senders as delivered
+ * WhatsApp-style: messages marked delivered when recipient opens chat
+ */
+export async function markMessagesAsDelivered(
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  const db = getFirestoreDb();
+  const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+  const snapshot = await getDocs(messagesRef);
+  const batch = writeBatch(db);
+  let hasUpdates = false;
+
+  snapshot.docs.forEach(docSnap => {
+    const message = docSnap.data();
+    // Only mark messages from others that haven't been delivered yet
+    if (message.sender !== userId && !message.deliveredBy?.includes(userId)) {
+      batch.update(docSnap.ref, {
+        deliveredAt: serverTimestamp(),
+        deliveredBy: arrayUnion(userId),
+      });
+      hasUpdates = true;
+    }
+  });
+
+  if (hasUpdates) {
+    await batch.commit();
+  }
+}
+
+/**
+ * Mark all unread messages from other senders as read
+ * WhatsApp-style: messages marked read when chat window has focus
+ */
+export async function markMessagesAsRead(
+  conversationId: string,
+  userId: string
+): Promise<void> {
+  const db = getFirestoreDb();
+  const messagesRef = collection(db, "conversations", conversationId, "messages");
+
+  const snapshot = await getDocs(messagesRef);
+  const batch = writeBatch(db);
+  let hasUpdates = false;
+
+  snapshot.docs.forEach(docSnap => {
+    const message = docSnap.data();
+    // Only mark messages from others that haven't been read yet
+    if (message.sender !== userId && !message.readBy?.includes(userId)) {
+      batch.update(docSnap.ref, {
+        readAt: serverTimestamp(),
+        readBy: arrayUnion(userId),
+      });
+      hasUpdates = true;
+    }
+  });
+
+  if (hasUpdates) {
+    await batch.commit();
+  }
+}
+
+/**
+ * Mark a single message as read (for viewport-based tracking)
+ */
+export async function markMessageAsRead(
+  conversationId: string,
+  messageId: string,
+  userId: string
+): Promise<void> {
+  const db = getFirestoreDb();
+  const messageRef = doc(db, "conversations", conversationId, "messages", messageId);
+
+  try {
+    await updateDoc(messageRef, {
+      readAt: serverTimestamp(),
+      readBy: arrayUnion(userId),
+    });
+  } catch (error) {
+    console.error("Error marking message as read:", error);
+  }
+}
+
+/**
+ * Set typing status for current user
+ */
+export async function setTypingStatus(
+  conversationId: string,
+  userId: string,
+  isTyping: boolean
+): Promise<void> {
+  const db = getFirestoreDb();
+  const conversationRef = doc(db, "conversations", conversationId);
+
+  try {
+    if (isTyping) {
+      await updateDoc(conversationRef, {
+        typingUsers: arrayUnion(userId),
+      });
+    } else {
+      await updateDoc(conversationRef, {
+        typingUsers: arrayRemove(userId),
+      });
+    }
+  } catch (error) {
+    console.error("Error setting typing status:", error);
+  }
+}
+
+/**
+ * Subscribe to conversation updates (including typing status)
+ */
+export function subscribeToConversation(
+  conversationId: string,
+  callback: (conversation: Conversation) => void
+): () => void {
+  const db = getFirestoreDb();
+  const conversationRef = doc(db, "conversations", conversationId);
+
+  const unsubscribe = onSnapshot(conversationRef, (snapshot) => {
+    if (snapshot.exists()) {
+      const data = snapshot.data();
+      callback({
+        id: snapshot.id,
+        ...data,
+        createdAt: data.createdAt,
+        typingUsers: data.typingUsers || [],
+      } as Conversation);
+    }
+  });
+
+  return unsubscribe;
 }
