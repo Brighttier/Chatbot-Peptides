@@ -66,6 +66,7 @@ const AutoExpandingTextarea = React.forwardRef<
         maxHeight: `${maxHeight}px`,
         wordBreak: "break-word",
         overflowWrap: "break-word",
+        overflowX: "hidden",
       }}
       {...props}
     />

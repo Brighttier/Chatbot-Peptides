@@ -451,7 +451,7 @@ export function LiveChat({
               </Button>
             </div>
           ) : (
-            <div className="flex gap-3 items-end overflow-hidden">
+            <div className="flex gap-3 items-end">
               <AutoExpandingTextarea
                 ref={inputRef}
                 value={inputValue}
