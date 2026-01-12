@@ -313,7 +313,7 @@ export function WidgetLiveChat({
 
       {/* Input Area */}
       <div className="border-t bg-white p-3">
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           <AutoExpandingTextarea
             ref={inputRef}
             value={inputValue}
@@ -331,7 +331,7 @@ export function WidgetLiveChat({
             onClick={handleSend}
             size="icon"
             disabled={!inputValue.trim() || isTyping}
-            className="h-9 w-9 rounded-full bg-blue-600 hover:bg-blue-700"
+            className="h-9 w-9 rounded-full bg-blue-600 hover:bg-blue-700 shrink-0"
           >
             {isTyping ? (
               <Loader2 className="h-4 w-4 animate-spin" />

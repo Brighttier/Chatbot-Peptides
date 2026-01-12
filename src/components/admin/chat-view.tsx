@@ -973,7 +973,7 @@ export function ChatView({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-end">
           {/* Canned Responses Button */}
           <Button
             type="button"

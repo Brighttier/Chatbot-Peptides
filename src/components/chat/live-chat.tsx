@@ -451,7 +451,7 @@ export function LiveChat({
               </Button>
             </div>
           ) : (
-            <div className="flex gap-3">
+            <div className="flex gap-3 items-end">
               <AutoExpandingTextarea
                 ref={inputRef}
                 value={inputValue}
@@ -468,7 +468,7 @@ export function LiveChat({
                 onClick={handleSend}
                 size="icon"
                 disabled={!inputValue.trim() || isTyping}
-                className="h-11 w-11 rounded-full shadow-md transition-all hover:scale-105 hover:shadow-lg active:scale-95"
+                className="h-11 w-11 rounded-full shadow-md transition-all hover:scale-105 hover:shadow-lg active:scale-95 shrink-0"
               >
                 {isTyping ? (
                   <Loader2 className="h-5 w-5 animate-spin" />
