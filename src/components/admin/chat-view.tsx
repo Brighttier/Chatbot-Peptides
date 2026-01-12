@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { Input } from "@/components/ui/input";
+import { AutoExpandingTextarea } from "@/components/ui/auto-expanding-textarea";
 import { Button } from "@/components/ui/button";
 import { Send, User, UserCircle, Bot, Loader2, MessageSquare, Archive, ArchiveRestore, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Zap, X, Search, Trash2, DollarSign, Plus, Edit2 } from "lucide-react";
 import { subscribeToMessages, markMessagesAsDelivered, markMessagesAsRead, subscribeToConversation } from "@/lib/firebase";
@@ -79,7 +79,7 @@ export function ChatView({
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState("");
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const cannedMenuRef = useRef<HTMLDivElement>(null);
 
   // Initialize hooks for typing and read tracking
@@ -539,7 +539,7 @@ export function ChatView({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // Handle canned responses navigation
     if (showCannedResponses && filteredCannedResponses.length > 0) {
       if (e.key === "ArrowDown") {
@@ -569,7 +569,7 @@ export function ChatView({
     }
 
     // Normal Enter to send
-    if (e.key === "Enter" && !e.shiftKey) {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleSend();
     }
@@ -989,7 +989,7 @@ export function ChatView({
             <Zap className="h-4 w-4" />
           </Button>
 
-          <Input
+          <AutoExpandingTextarea
             ref={inputRef}
             value={inputValue}
             onChange={(e) => {
@@ -998,7 +998,7 @@ export function ChatView({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message or / for quick responses..."
-            className="flex-1 rounded-full border-gray-200 bg-white px-4"
+            className="flex-1 rounded-2xl border-gray-200 bg-white px-4"
             disabled={isSending || conversation.status !== "active"}
           />
           <Button

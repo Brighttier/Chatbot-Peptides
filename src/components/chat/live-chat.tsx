@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
+import { AutoExpandingTextarea } from "@/components/ui/auto-expanding-textarea";
 import { Button } from "@/components/ui/button";
 import { Send, User, Bot, Loader2, UserCircle, AlertCircle, X } from "lucide-react";
 import { subscribeToMessages, markMessagesAsDelivered, markMessagesAsRead, subscribeToConversation } from "@/lib/firebase";
@@ -46,7 +46,7 @@ export function LiveChat({
   const [chatEnded, setChatEnded] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize hooks for typing indicators and viewport-based read tracking
   const userId = "USER";
@@ -176,8 +176,8 @@ export function LiveChat({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleSend();
     }
@@ -452,7 +452,7 @@ export function LiveChat({
             </div>
           ) : (
             <div className="flex gap-3">
-              <Input
+              <AutoExpandingTextarea
                 ref={inputRef}
                 value={inputValue}
                 onChange={(e) => {
@@ -461,7 +461,7 @@ export function LiveChat({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
-                className="flex-1 rounded-full border-2 px-4 focus-visible:ring-2 focus-visible:ring-primary"
+                className="flex-1 rounded-2xl border-2 px-4 focus-visible:ring-2 focus-visible:ring-primary"
                 disabled={isTyping}
               />
               <Button

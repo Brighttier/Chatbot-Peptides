@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Input } from "@/components/ui/input";
+import { AutoExpandingTextarea } from "@/components/ui/auto-expanding-textarea";
 import { Button } from "@/components/ui/button";
 import { Send, User, Bot, Loader2, UserCircle, PhoneForwarded } from "lucide-react";
 import { subscribeToMessages, markMessagesAsDelivered, markMessagesAsRead, subscribeToConversation } from "@/lib/firebase";
@@ -44,7 +44,7 @@ export function WidgetLiveChat({
   const [error, setError] = useState<string | null>(null);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // Initialize hooks for typing indicators and viewport-based read tracking
   const userId = "USER";
@@ -174,8 +174,8 @@ export function WidgetLiveChat({
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter") {
       e.preventDefault();
       handleSend();
     }
@@ -314,7 +314,7 @@ export function WidgetLiveChat({
       {/* Input Area */}
       <div className="border-t bg-white p-3">
         <div className="flex gap-2">
-          <Input
+          <AutoExpandingTextarea
             ref={inputRef}
             value={inputValue}
             onChange={(e) => {
@@ -323,7 +323,8 @@ export function WidgetLiveChat({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            className="flex-1 h-9 text-sm rounded-full border-gray-200 px-4"
+            className="flex-1 text-sm rounded-2xl border-gray-200 px-4"
+            maxHeight={120}
             disabled={isTyping}
           />
           <Button
