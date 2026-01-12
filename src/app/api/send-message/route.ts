@@ -11,6 +11,7 @@ import {
   detectSaleKeywords,
   shouldFlagAsPotentialSale,
 } from "@/lib/sale-detection";
+import { sendNewMessageNotification } from "@/lib/email-notifications";
 import { Timestamp } from "firebase-admin/firestore";
 import type { SendMessageRequest, SendMessageResponse } from "@/types";
 
@@ -64,6 +65,25 @@ export async function POST(request: NextRequest) {
         // Don't fail the message if sale tracking fails
         console.error("Failed to update sale tracking:", saleError);
       }
+    }
+
+    // Send email notification for new message
+    try {
+      const customerName = conversation.customerInfo
+        ? `${conversation.customerInfo.firstName || ""} ${conversation.customerInfo.lastName || ""}`.trim() || "Customer"
+        : "Customer";
+
+      await sendNewMessageNotification({
+        repEmail: "notificationsjaprotocols@gmail.com",
+        customerName,
+        customerPhone: conversation.userMobileNumber,
+        conversationId,
+        messagePreview: content,
+        chatMode: conversation.chatMode,
+      });
+    } catch (emailError) {
+      // Don't fail the message if email notification fails
+      console.error("Failed to send email notification:", emailError);
     }
 
     // Handle based on chat mode
