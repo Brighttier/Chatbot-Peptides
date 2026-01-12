@@ -12,64 +12,52 @@ const AutoExpandingTextarea = React.forwardRef<
   HTMLTextAreaElement,
   AutoExpandingTextareaProps
 >(({ className, maxHeight = 150, onChange, value, ...props }, ref) => {
-  const textareaRef = React.useRef<HTMLTextAreaElement | null>(null);
+  const [internalValue, setInternalValue] = React.useState(value || "");
 
-  // Combine refs
-  React.useImperativeHandle(ref, () => textareaRef.current!);
-
-  const adjustHeight = React.useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-
-    // Reset height to auto to get accurate scrollHeight
-    textarea.style.height = "auto";
-
-    // Calculate new height (capped at maxHeight)
-    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
-    textarea.style.height = `${newHeight}px`;
-
-    // Add scrollbar if content exceeds maxHeight
-    textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
-  }, [maxHeight]);
-
-  // Adjust height when value changes
+  // Sync with controlled value
   React.useEffect(() => {
-    adjustHeight();
-  }, [value, adjustHeight]);
+    if (value !== undefined) {
+      setInternalValue(value);
+    }
+  }, [value]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInternalValue(e.target.value);
     onChange?.(e);
-    adjustHeight();
   };
 
   return (
-    <textarea
-      ref={textareaRef}
-      value={value}
-      onChange={handleChange}
-      rows={1}
-      wrap="soft"
-      className={cn(
-        // Base styles matching Input component
-        "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input w-full min-w-0 border bg-transparent px-3 py-2 shadow-xs transition-[color,box-shadow,height] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
-        // Focus styles
-        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        // Invalid styles
-        "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
-        // Textarea-specific styles
-        "resize-none min-h-[36px] rounded-2xl whitespace-pre-wrap",
-        // Font size - 16px to prevent iOS zoom
-        "text-base md:text-sm",
-        className
-      )}
-      style={{
-        maxHeight: `${maxHeight}px`,
-        wordBreak: "break-word",
-        overflowWrap: "break-word",
-        overflowX: "hidden",
-      }}
-      {...props}
-    />
+    <div
+      className={cn("grid flex-1", className)}
+      style={{ maxHeight: `${maxHeight}px`, overflow: "auto" }}
+    >
+      {/* Hidden div that expands to fit content */}
+      <div
+        className={cn(
+          "invisible whitespace-pre-wrap break-words",
+          "border px-3 py-2 text-base md:text-sm",
+          "[grid-area:1/1/2/2]"
+        )}
+        aria-hidden="true"
+      >
+        {internalValue + " "}
+      </div>
+      {/* Actual textarea positioned in same grid cell */}
+      <textarea
+        ref={ref}
+        value={value}
+        onChange={handleChange}
+        rows={1}
+        className={cn(
+          "placeholder:text-muted-foreground border-input bg-transparent px-3 py-2 outline-none",
+          "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+          "resize-none min-h-[36px] rounded-2xl border",
+          "text-base md:text-sm",
+          "[grid-area:1/1/2/2]"
+        )}
+        {...props}
+      />
+    </div>
   );
 });
 
