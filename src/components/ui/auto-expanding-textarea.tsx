@@ -56,7 +56,7 @@ const AutoExpandingTextarea = React.forwardRef<
         // Invalid styles
         "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         // Textarea-specific styles
-        "resize-none min-h-[36px] rounded-2xl",
+        "resize-none min-h-[36px] rounded-2xl break-words",
         // Font size - 16px to prevent iOS zoom
         "text-base md:text-sm",
         className
