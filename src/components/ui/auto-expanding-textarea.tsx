@@ -48,6 +48,7 @@ const AutoExpandingTextarea = React.forwardRef<
       value={value}
       onChange={handleChange}
       rows={1}
+      wrap="soft"
       className={cn(
         // Base styles matching Input component
         "placeholder:text-muted-foreground selection:bg-primary selection:text-primary-foreground dark:bg-input/30 border-input w-full min-w-0 border bg-transparent px-3 py-2 shadow-xs transition-[color,box-shadow,height] outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
@@ -56,13 +57,15 @@ const AutoExpandingTextarea = React.forwardRef<
         // Invalid styles
         "aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive",
         // Textarea-specific styles
-        "resize-none min-h-[36px] rounded-2xl break-words",
+        "resize-none min-h-[36px] rounded-2xl whitespace-pre-wrap",
         // Font size - 16px to prevent iOS zoom
         "text-base md:text-sm",
         className
       )}
       style={{
         maxHeight: `${maxHeight}px`,
+        wordBreak: "break-word",
+        overflowWrap: "break-word",
       }}
       {...props}
     />
