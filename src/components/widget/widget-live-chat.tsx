@@ -313,7 +313,7 @@ export function WidgetLiveChat({
 
       {/* Input Area */}
       <div className="border-t bg-white p-3">
-        <div className="flex gap-2 items-end">
+        <div className="flex gap-2 items-end overflow-hidden">
           <AutoExpandingTextarea
             ref={inputRef}
             value={inputValue}
