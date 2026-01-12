@@ -998,7 +998,7 @@ export function ChatView({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message or / for quick responses..."
-            className="flex-1 rounded-2xl border-gray-200 bg-white px-4"
+            className="w-0 flex-1 rounded-2xl border-gray-200 bg-white px-4"
             disabled={isSending || conversation.status !== "active"}
           />
           <Button
