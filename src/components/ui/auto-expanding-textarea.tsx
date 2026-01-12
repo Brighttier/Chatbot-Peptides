@@ -14,7 +14,6 @@ const AutoExpandingTextarea = React.forwardRef<
 >(({ className, maxHeight = 150, onChange, value, ...props }, ref) => {
   const [internalValue, setInternalValue] = React.useState(value || "");
 
-  // Sync with controlled value
   React.useEffect(() => {
     if (value !== undefined) {
       setInternalValue(value);
@@ -26,33 +25,38 @@ const AutoExpandingTextarea = React.forwardRef<
     onChange?.(e);
   };
 
+  // Shared styles for both hidden div and textarea - must match exactly for sizing
+  const sharedStyles = cn(
+    "px-3 py-2 text-base md:text-sm border rounded-2xl",
+    className
+  );
+
   return (
     <div
-      className={cn("grid flex-1", className)}
+      className="grid flex-1 min-w-0"
       style={{ maxHeight: `${maxHeight}px`, overflow: "auto" }}
     >
-      {/* Hidden div that expands to fit content */}
+      {/* Hidden div - mirrors textarea content to determine height */}
       <div
         className={cn(
+          sharedStyles,
           "invisible whitespace-pre-wrap break-words",
-          "border px-3 py-2 text-base md:text-sm",
           "[grid-area:1/1/2/2]"
         )}
         aria-hidden="true"
       >
         {internalValue + " "}
       </div>
-      {/* Actual textarea positioned in same grid cell */}
+      {/* Actual textarea - overlays hidden div */}
       <textarea
         ref={ref}
         value={value}
         onChange={handleChange}
         rows={1}
         className={cn(
-          "placeholder:text-muted-foreground border-input bg-transparent px-3 py-2 outline-none",
+          sharedStyles,
+          "placeholder:text-muted-foreground bg-transparent outline-none resize-none",
           "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-          "resize-none min-h-[36px] rounded-2xl border",
-          "text-base md:text-sm",
           "[grid-area:1/1/2/2]"
         )}
         {...props}
