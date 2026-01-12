@@ -12,56 +12,58 @@ const AutoExpandingTextarea = React.forwardRef<
   HTMLTextAreaElement,
   AutoExpandingTextareaProps
 >(({ className, maxHeight = 150, onChange, value, ...props }, ref) => {
-  const [internalValue, setInternalValue] = React.useState(value || "");
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
+  // Combine refs
+  React.useImperativeHandle(ref, () => textareaRef.current!);
+
+  const adjustHeight = React.useCallback(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    // Reset to single row to get accurate scrollHeight
+    textarea.style.height = "auto";
+
+    // Set new height capped at maxHeight
+    const newHeight = Math.min(textarea.scrollHeight, maxHeight);
+    textarea.style.height = `${newHeight}px`;
+  }, [maxHeight]);
+
+  // Adjust on value change
   React.useEffect(() => {
-    if (value !== undefined) {
-      setInternalValue(value);
-    }
-  }, [value]);
+    adjustHeight();
+  }, [value, adjustHeight]);
 
   const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setInternalValue(e.target.value);
     onChange?.(e);
+    // Use requestAnimationFrame to ensure DOM has updated
+    requestAnimationFrame(adjustHeight);
   };
 
-  // Shared styles for both hidden div and textarea - must match exactly for sizing
-  const sharedStyles = cn(
-    "px-3 py-2 text-base md:text-sm border rounded-2xl",
-    className
-  );
-
   return (
-    <div
-      className="grid flex-1 min-w-0"
-      style={{ maxHeight: `${maxHeight}px`, overflow: "auto" }}
-    >
-      {/* Hidden div - mirrors textarea content to determine height */}
-      <div
-        className={cn(
-          sharedStyles,
-          "invisible whitespace-pre-wrap break-words",
-          "[grid-area:1/1/2/2]"
-        )}
-        aria-hidden="true"
-      >
-        {internalValue + " "}
-      </div>
-      {/* Actual textarea - overlays hidden div */}
-      <textarea
-        ref={ref}
-        value={value}
-        onChange={handleChange}
-        rows={1}
-        className={cn(
-          sharedStyles,
-          "placeholder:text-muted-foreground bg-transparent outline-none resize-none",
-          "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-          "[grid-area:1/1/2/2]"
-        )}
-        {...props}
-      />
-    </div>
+    <textarea
+      ref={textareaRef}
+      value={value}
+      onChange={handleChange}
+      rows={1}
+      className={cn(
+        "placeholder:text-muted-foreground border-input bg-transparent border",
+        "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
+        "resize-none min-h-[36px] rounded-2xl outline-none px-3 py-2",
+        "text-base md:text-sm",
+        className
+      )}
+      style={{
+        width: "100%",
+        boxSizing: "border-box",
+        maxHeight: `${maxHeight}px`,
+        overflowY: "auto",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+        whiteSpace: "pre-wrap",
+      }}
+      {...props}
+    />
   );
 });
 

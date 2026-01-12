@@ -323,7 +323,7 @@ export function WidgetLiveChat({
             }}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            className="text-sm rounded-2xl border-gray-200 px-4"
+            className="min-w-0 flex-1 text-sm rounded-2xl border-gray-200 px-4"
             maxHeight={120}
             disabled={isTyping}
           />

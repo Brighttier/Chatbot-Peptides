@@ -461,7 +461,7 @@ export function LiveChat({
                 }}
                 onKeyDown={handleKeyDown}
                 placeholder="Type your message..."
-                className="rounded-2xl border-2 px-4 focus-visible:ring-2 focus-visible:ring-primary"
+                className="min-w-0 flex-1 rounded-2xl border-2 px-4 focus-visible:ring-2 focus-visible:ring-primary"
                 disabled={isTyping}
               />
               <Button
