@@ -47,20 +47,15 @@ const AutoExpandingTextarea = React.forwardRef<
       onChange={handleChange}
       rows={1}
       className={cn(
+        "w-full box-border resize-none overflow-y-auto whitespace-pre-wrap break-words",
         "placeholder:text-muted-foreground border-input bg-transparent border",
         "focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px]",
-        "resize-none min-h-[36px] rounded-2xl outline-none px-3 py-2",
+        "min-h-[36px] rounded-2xl outline-none px-3 py-2",
         "text-base md:text-sm",
         className
       )}
       style={{
-        width: "100%",
-        boxSizing: "border-box",
         maxHeight: `${maxHeight}px`,
-        overflowY: "auto",
-        wordWrap: "break-word",
-        overflowWrap: "break-word",
-        whiteSpace: "pre-wrap",
       }}
       {...props}
     />
