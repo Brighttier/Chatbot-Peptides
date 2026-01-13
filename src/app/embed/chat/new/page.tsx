@@ -3,7 +3,8 @@
 import { useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ModeSelection } from "@/components/chat/mode-selection";
-import { MobileGateway } from "@/components/chat/mobile-gateway";
+import { MobileGateway, InitialUserData } from "@/components/chat/mobile-gateway";
+import { useParentUserData } from "@/hooks/useParentUserData";
 import { Loader2 } from "lucide-react";
 
 interface IntakeAnswers {
@@ -29,6 +30,18 @@ function EmbedChatContent() {
   const searchParams = useSearchParams();
   const repId = searchParams.get("repId") || "default";
   const [step, setStep] = useState<Step>("mode-selection");
+
+  // Listen for user data from parent window (Lovable/Supabase)
+  const { userData, isLoading: isLoadingUserData, hasCompleteData } = useParentUserData();
+
+  // Convert parent user data to InitialUserData format
+  const initialData: InitialUserData | null = userData ? {
+    firstName: userData.firstName,
+    lastName: userData.lastName,
+    phone: userData.phone,
+    dateOfBirth: userData.dateOfBirth,
+    email: userData.email,
+  } : null;
 
   const handleHumanSubmit = async (data: CustomerData) => {
     const response = await fetch("/api/init-chat", {
@@ -79,6 +92,15 @@ function EmbedChatContent() {
     router.push(`/chat/${responseData.conversationId}`);
   };
 
+  // Show loading state while waiting for parent user data (max 2 seconds)
+  if (isLoadingUserData) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
+
   if (step === "mode-selection") {
     return (
       <ModeSelection
@@ -94,6 +116,8 @@ function EmbedChatContent() {
         repId={repId}
         onSubmit={handleHumanSubmit}
         showInstagram
+        initialData={initialData}
+        autoSkipContact={hasCompleteData}
       />
     );
   }
@@ -104,6 +128,8 @@ function EmbedChatContent() {
         repId={repId}
         onSubmit={handleAISubmit}
         showInstagram={false}
+        initialData={initialData}
+        autoSkipContact={hasCompleteData}
       />
     );
   }

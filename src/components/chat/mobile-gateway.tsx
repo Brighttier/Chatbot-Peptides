@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -23,24 +23,47 @@ interface CustomerData {
   intakeAnswers?: IntakeAnswers;
 }
 
+// Initial data that can be passed from parent (e.g., via postMessage from Lovable)
+export interface InitialUserData {
+  firstName?: string;
+  lastName?: string;
+  phone?: string;
+  dateOfBirth?: string;
+  email?: string;
+}
+
 // Intake question options
 const GOAL_OPTIONS = ["Muscle Growth", "Anti-Aging", "Recovery", "Other"];
 const STAGE_OPTIONS = ["Starting a Protocol", "Optimizing Existing Protocol", "Just Researching"];
 const INTEREST_OPTIONS = ["Purchasing Peptides", "Coaching Services", "Personalized Advice"];
 
-type Step = "contact" | "intake";
+type Step = "contact" | "consent" | "intake";
 
 interface MobileGatewayProps {
   repId?: string;
   onSubmit: (data: CustomerData) => Promise<void>;
   showInstagram?: boolean;
+  initialData?: InitialUserData | null;
+  autoSkipContact?: boolean;
 }
 
 export function MobileGateway({
   onSubmit,
   showInstagram = true,
+  initialData,
+  autoSkipContact = false,
 }: MobileGatewayProps) {
-  const [step, setStep] = useState<Step>("contact");
+  // Determine initial step based on whether we have complete data and autoSkip is enabled
+  const hasCompleteContactData = !!(
+    initialData?.firstName &&
+    initialData?.lastName &&
+    initialData?.phone &&
+    initialData?.dateOfBirth
+  );
+
+  const initialStep: Step = autoSkipContact && hasCompleteContactData ? "consent" : "contact";
+
+  const [step, setStep] = useState<Step>(initialStep);
   const [mobileNumber, setMobileNumber] = useState("");
   const [instagramHandle, setInstagramHandle] = useState("");
   const [firstName, setFirstName] = useState("");
@@ -49,6 +72,21 @@ export function MobileGateway({
   const [consentGiven, setConsentGiven] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [dataInitialized, setDataInitialized] = useState(false);
+
+  // Pre-fill form fields from initialData
+  useEffect(() => {
+    if (initialData && !dataInitialized) {
+      if (initialData.firstName) setFirstName(initialData.firstName);
+      if (initialData.lastName) setLastName(initialData.lastName);
+      if (initialData.phone) {
+        // Format the phone number for display
+        setMobileNumber(formatPhoneNumber(initialData.phone));
+      }
+      if (initialData.dateOfBirth) setDateOfBirth(initialData.dateOfBirth);
+      setDataInitialized(true);
+    }
+  }, [initialData, dataInitialized]);
 
   // Intake questions state
   const [selectedGoals, setSelectedGoals] = useState<string[]>([]);
@@ -105,6 +143,18 @@ export function MobileGateway({
     const validationError = validateContactForm();
     if (validationError) {
       setError(validationError);
+      return;
+    }
+
+    setError("");
+    setStep("intake");
+  };
+
+  const handleConsentSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!consentGiven) {
+      setError("Please agree to the terms to continue");
       return;
     }
 
@@ -281,7 +331,75 @@ export function MobileGateway({
     );
   }
 
-  // Step 2: Intake Questions
+  // Step 2: Consent (shown when auto-skipping contact step)
+  if (step === "consent") {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background p-4">
+        <Card className="w-full max-w-md p-6 space-y-5">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold">Welcome Back, {firstName}!</h1>
+            <p className="text-muted-foreground text-sm">
+              We found your account. Just confirm below to continue.
+            </p>
+          </div>
+
+          <form onSubmit={handleConsentSubmit} className="space-y-4">
+            {/* Show pre-filled data summary */}
+            <div className="p-4 bg-muted/50 rounded-lg space-y-2 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Name:</span>
+                <span className="font-medium">{firstName} {lastName}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Phone:</span>
+                <span className="font-medium">{mobileNumber}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">Date of Birth:</span>
+                <span className="font-medium">{dateOfBirth}</span>
+              </div>
+            </div>
+
+            {/* Consent Checkbox */}
+            <div className="flex items-start gap-3 p-3 bg-muted/50 rounded-lg">
+              <input
+                type="checkbox"
+                id="consent-auto"
+                checked={consentGiven}
+                onChange={(e) => { setConsentGiven(e.target.checked); setError(""); }}
+                className="mt-0.5 h-4 w-4 rounded border-gray-300"
+                autoFocus
+              />
+              <label htmlFor="consent-auto" className="text-xs text-muted-foreground leading-relaxed cursor-pointer">
+                I agree to receive communications and understand my information will be used to assist with my inquiry.
+              </label>
+            </div>
+
+            {error && (
+              <p className="text-sm text-destructive text-center">{error}</p>
+            )}
+
+            <div className="flex gap-3">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setStep("contact")}
+                className="flex-1"
+              >
+                Edit Info
+              </Button>
+              <Button type="submit" className="flex-1" size="lg">
+                Continue
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </div>
+          </form>
+        </Card>
+      </div>
+    );
+  }
+
+  // Step 3: Intake Questions
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-accent/5 to-background p-4">
       <Card className="w-full max-w-md p-6 space-y-5">
@@ -378,7 +496,7 @@ export function MobileGateway({
           <Button
             type="button"
             variant="outline"
-            onClick={() => setStep("contact")}
+            onClick={() => setStep(hasCompleteContactData && autoSkipContact ? "consent" : "contact")}
             className="flex-1"
           >
             <ArrowLeft className="h-4 w-4 mr-2" />

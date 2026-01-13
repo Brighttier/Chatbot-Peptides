@@ -21,6 +21,8 @@ env:
     value: chatbot
   - variable: FIREBASE_DATABASE_ID
     value: chatbot
+  - variable: NEXT_PUBLIC_ALLOWED_EMBED_ORIGINS
+    value: "https://your-lovable-domain.com"  # Replace with your actual Lovable custom domain
 
   # Secrets (sensitive values - available at runtime)
   - variable: FIREBASE_SERVICE_ACCOUNT_KEY
