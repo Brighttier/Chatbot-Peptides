@@ -5,7 +5,40 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Phone, Instagram, ArrowRight, ArrowLeft, Loader2, User, Calendar } from "lucide-react";
+
+// Country codes for the dropdown
+const COUNTRY_CODES = [
+  { code: "+1", name: "US", flag: "🇺🇸" },
+  { code: "+1", name: "CA", flag: "🇨🇦" },
+  { code: "+44", name: "UK", flag: "🇬🇧" },
+  { code: "+91", name: "IN", flag: "🇮🇳" },
+  { code: "+61", name: "AU", flag: "🇦🇺" },
+  { code: "+49", name: "DE", flag: "🇩🇪" },
+  { code: "+33", name: "FR", flag: "🇫🇷" },
+  { code: "+81", name: "JP", flag: "🇯🇵" },
+  { code: "+86", name: "CN", flag: "🇨🇳" },
+  { code: "+52", name: "MX", flag: "🇲🇽" },
+  { code: "+55", name: "BR", flag: "🇧🇷" },
+  { code: "+34", name: "ES", flag: "🇪🇸" },
+  { code: "+39", name: "IT", flag: "🇮🇹" },
+  { code: "+31", name: "NL", flag: "🇳🇱" },
+  { code: "+65", name: "SG", flag: "🇸🇬" },
+  { code: "+971", name: "AE", flag: "🇦🇪" },
+  { code: "+972", name: "IL", flag: "🇮🇱" },
+  { code: "+82", name: "KR", flag: "🇰🇷" },
+  { code: "+64", name: "NZ", flag: "🇳🇿" },
+  { code: "+47", name: "NO", flag: "🇳🇴" },
+  { code: "+46", name: "SE", flag: "🇸🇪" },
+  { code: "+41", name: "CH", flag: "🇨🇭" },
+];
 
 interface IntakeAnswers {
   goals: string[];
@@ -65,6 +98,7 @@ export function MobileGateway({
 
   const [step, setStep] = useState<Step>(initialStep);
   const [mobileNumber, setMobileNumber] = useState("");
+  const [countryCode, setCountryCode] = useState("US"); // Store country name as value for uniqueness
   const [instagramHandle, setInstagramHandle] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -125,14 +159,20 @@ export function MobileGateway({
 
   const validatePhone = (phone: string): boolean => {
     const digits = phone.replace(/\D/g, "");
-    return digits.length === 10;
+    return digits.length >= 7 && digits.length <= 15;
+  };
+
+  // Get the actual country code from the selected country name
+  const getSelectedCountryCode = (): string => {
+    const country = COUNTRY_CODES.find((c) => c.name === countryCode);
+    return country?.code || "+1";
   };
 
   const validateContactForm = (): string | null => {
     if (!firstName.trim()) return "Please enter your first name";
     if (!lastName.trim()) return "Please enter your last name";
     if (!dateOfBirth) return "Please enter your date of birth";
-    if (!validatePhone(mobileNumber)) return "Please enter a valid 10-digit phone number";
+    if (!validatePhone(mobileNumber)) return "Please enter a valid phone number (7-15 digits)";
     if (!consentGiven) return "Please agree to the terms to continue";
     return null;
   };
@@ -180,7 +220,7 @@ export function MobileGateway({
     setError("");
 
     try {
-      const e164Number = "+1" + mobileNumber.replace(/\D/g, "");
+      const e164Number = getSelectedCountryCode() + mobileNumber.replace(/\D/g, "");
 
       const intakeAnswers: IntakeAnswers = {
         goals: selectedGoals,
@@ -264,20 +304,38 @@ export function MobileGateway({
               />
             </div>
 
-            {/* Phone Number */}
+            {/* Phone Number with Country Code */}
             <div className="space-y-1.5">
               <Label htmlFor="mobile" className="text-sm flex items-center gap-1.5">
                 <Phone className="h-3.5 w-3.5" />
                 Mobile Number
               </Label>
-              <Input
-                id="mobile"
-                type="tel"
-                placeholder="(555) 555-5555"
-                value={mobileNumber}
-                onChange={handlePhoneChange}
-                required
-              />
+              <div className="flex gap-2">
+                <Select value={countryCode} onValueChange={setCountryCode}>
+                  <SelectTrigger className="w-[100px]">
+                    <SelectValue>
+                      {COUNTRY_CODES.find((c) => c.name === countryCode)?.flag}{" "}
+                      {COUNTRY_CODES.find((c) => c.name === countryCode)?.code}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {COUNTRY_CODES.map((country) => (
+                      <SelectItem key={country.name} value={country.name}>
+                        {country.flag} {country.code} ({country.name})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Input
+                  id="mobile"
+                  type="tel"
+                  placeholder="Phone number"
+                  value={mobileNumber}
+                  onChange={handlePhoneChange}
+                  className="flex-1"
+                  required
+                />
+              </div>
             </div>
 
             {/* Instagram (optional) */}
@@ -352,7 +410,7 @@ export function MobileGateway({
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Phone:</span>
-                <span className="font-medium">{mobileNumber}</span>
+                <span className="font-medium">{getSelectedCountryCode()} {mobileNumber}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Date of Birth:</span>

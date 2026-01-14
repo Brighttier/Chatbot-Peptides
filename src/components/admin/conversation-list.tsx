@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, User, Archive, Inbox, Merge, Loader2 } from "lucide-react";
+import { MessageSquare, User, Archive, Inbox, Merge, Loader2, LayoutList, List } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import type { Conversation, MessageSender } from "@/types";
 
 interface ConversationWithPreview extends Conversation {
@@ -32,6 +33,7 @@ export function ConversationList({
   onRefresh,
 }: ConversationListProps) {
   const [filter, setFilter] = useState<FilterType>("all");
+  const [viewMode, setViewMode] = useState<"standard" | "compact">("standard");
   const [isMerging, setIsMerging] = useState(false);
   const [mergeResult, setMergeResult] = useState<string | null>(null);
 
@@ -138,7 +140,7 @@ export function ConversationList({
     return "hover:bg-gray-100 border border-transparent";
   };
 
-  // Render a single conversation item
+  // Render a single conversation item (standard view)
   const renderConversationItem = (conversation: ConversationWithPreview) => (
     <button
       key={conversation.id}
@@ -255,6 +257,61 @@ export function ConversationList({
     </button>
   );
 
+  // Render compact conversation item
+  const renderCompactItem = (conversation: ConversationWithPreview) => (
+    <button
+      key={conversation.id}
+      onClick={() => onSelect(conversation)}
+      className={`w-full rounded p-2 text-left transition-all ${getRowStyles(conversation)}`}
+    >
+      <div className="flex items-center gap-2">
+        {/* Small avatar */}
+        <div
+          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
+            selectedId === conversation.id
+              ? "bg-blue-500 text-white"
+              : conversation.status === "archived"
+              ? "bg-amber-200 text-amber-700"
+              : "bg-gray-200 text-gray-600"
+          }`}
+        >
+          {conversation.customerInfo?.firstName?.[0] ||
+            (conversation.status === "archived" ? (
+              <Archive className="h-3.5 w-3.5" />
+            ) : (
+              <User className="h-3.5 w-3.5" />
+            ))}
+        </div>
+
+        {/* Name/Phone + Time on same line */}
+        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+          <span className="font-medium text-sm truncate">
+            {conversation.customerInfo?.firstName ||
+              conversation.userMobileNumber.replace(/^\+1/, "")}
+          </span>
+          {conversation.lastMessage && (
+            <span className="text-xs text-gray-400 shrink-0">
+              {formatTime(conversation.lastMessage.timestamp)}
+            </span>
+          )}
+        </div>
+
+        {/* Status indicators */}
+        {conversation.hasUnread ? (
+          <div
+            className={`h-2 w-2 rounded-full shrink-0 animate-pulse ${
+              conversation.isNewConversation ? "bg-blue-500" : "bg-amber-500"
+            }`}
+          />
+        ) : conversation.status === "active" ? (
+          <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+        ) : (
+          <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+        )}
+      </div>
+    </button>
+  );
+
   return (
     <div className="flex h-full flex-col border-r bg-gray-50/50">
       {/* Header */}
@@ -266,22 +323,39 @@ export function ConversationList({
               {activeCount} active, {archivedCount} archived
             </p>
           </div>
-          {/* Merge button - only show if there are duplicates */}
-          {duplicateCount > 0 && (
-            <button
-              onClick={handleMerge}
-              disabled={isMerging}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50"
-              title={`Merge ${duplicateCount} duplicate conversation(s)`}
+          <div className="flex items-center gap-2">
+            {/* View mode toggle */}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => setViewMode(viewMode === "standard" ? "compact" : "standard")}
+              title={viewMode === "standard" ? "Switch to compact view" : "Switch to standard view"}
+              className="h-8 w-8"
             >
-              {isMerging ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              {viewMode === "standard" ? (
+                <List className="h-4 w-4" />
               ) : (
-                <Merge className="h-3.5 w-3.5" />
+                <LayoutList className="h-4 w-4" />
               )}
-              Merge ({duplicateCount})
-            </button>
-          )}
+            </Button>
+
+            {/* Merge button - only show if there are duplicates */}
+            {duplicateCount > 0 && (
+              <button
+                onClick={handleMerge}
+                disabled={isMerging}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-orange-100 text-orange-700 hover:bg-orange-200 transition-colors disabled:opacity-50"
+                title={`Merge ${duplicateCount} duplicate conversation(s)`}
+              >
+                {isMerging ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Merge className="h-3.5 w-3.5" />
+                )}
+                Merge ({duplicateCount})
+              </button>
+            )}
+          </div>
         </div>
         {/* Merge result message */}
         {mergeResult && (
@@ -331,7 +405,7 @@ export function ConversationList({
 
       {/* Conversation List */}
       <ScrollArea className="flex-1">
-        <div className="space-y-1 p-2">
+        <div className={viewMode === "compact" ? "space-y-0.5 p-1" : "space-y-1 p-2"}>
           {filteredConversations.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-12 text-gray-500">
               <MessageSquare className="h-12 w-12 mb-2 opacity-30" />
@@ -344,7 +418,11 @@ export function ConversationList({
               </p>
             </div>
           ) : (
-            filteredConversations.map((conversation) => renderConversationItem(conversation))
+            filteredConversations.map((conversation) =>
+              viewMode === "compact"
+                ? renderCompactItem(conversation)
+                : renderConversationItem(conversation)
+            )
           )}
         </div>
       </ScrollArea>

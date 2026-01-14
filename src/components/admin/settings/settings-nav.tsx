@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Plug, Palette, Code, MessageSquareText, DollarSign, Sparkles } from "lucide-react";
+import { Users, Plug, Palette, Code, MessageSquareText, DollarSign, Sparkles, Contact } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 interface NavItem {
@@ -48,6 +48,12 @@ const navItems: NavItem[] = [
     href: "/admin/settings/embed",
     label: "Embed",
     icon: <Code className="h-4 w-4" />,
+    adminOnly: true,
+  },
+  {
+    href: "/admin/settings/crm",
+    label: "CRM",
+    icon: <Contact className="h-4 w-4" />,
     adminOnly: true,
   },
   {
