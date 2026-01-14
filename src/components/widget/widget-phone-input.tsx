@@ -4,7 +4,40 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Phone, Instagram, ArrowRight, Loader2, User, Calendar } from "lucide-react";
+
+// Country codes for the dropdown
+const COUNTRY_CODES = [
+  { code: "+1", name: "US", flag: "🇺🇸" },
+  { code: "+1", name: "CA", flag: "🇨🇦" },
+  { code: "+44", name: "UK", flag: "🇬🇧" },
+  { code: "+91", name: "IN", flag: "🇮🇳" },
+  { code: "+61", name: "AU", flag: "🇦🇺" },
+  { code: "+49", name: "DE", flag: "🇩🇪" },
+  { code: "+33", name: "FR", flag: "🇫🇷" },
+  { code: "+81", name: "JP", flag: "🇯🇵" },
+  { code: "+86", name: "CN", flag: "🇨🇳" },
+  { code: "+52", name: "MX", flag: "🇲🇽" },
+  { code: "+55", name: "BR", flag: "🇧🇷" },
+  { code: "+34", name: "ES", flag: "🇪🇸" },
+  { code: "+39", name: "IT", flag: "🇮🇹" },
+  { code: "+31", name: "NL", flag: "🇳🇱" },
+  { code: "+65", name: "SG", flag: "🇸🇬" },
+  { code: "+971", name: "AE", flag: "🇦🇪" },
+  { code: "+972", name: "IL", flag: "🇮🇱" },
+  { code: "+82", name: "KR", flag: "🇰🇷" },
+  { code: "+64", name: "NZ", flag: "🇳🇿" },
+  { code: "+47", name: "NO", flag: "🇳🇴" },
+  { code: "+46", name: "SE", flag: "🇸🇪" },
+  { code: "+41", name: "CH", flag: "🇨🇭" },
+];
 
 export interface IntakeAnswers {
   goals: string[];
@@ -32,6 +65,7 @@ export function WidgetPhoneInput({
   showInstagram = false,
 }: WidgetPhoneInputProps) {
   const [mobileNumber, setMobileNumber] = useState("");
+  const [countryCode, setCountryCode] = useState("US"); // Store country name as value for uniqueness
   const [instagramHandle, setInstagramHandle] = useState("");
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -40,51 +74,47 @@ export function WidgetPhoneInput({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Handle phone input - allow international format
-  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    let value = e.target.value;
-    // Allow + at start, then only digits, spaces, hyphens, parentheses
-    value = value.replace(/[^\d\s\-\(\)\+]/g, "");
-    // Ensure + is only at the start
-    if (value.includes("+") && !value.startsWith("+")) {
-      value = value.replace(/\+/g, "");
+  // Format phone number for display
+  const formatPhoneNumber = (value: string): string => {
+    const digits = value.replace(/\D/g, "");
+    if (digits.length <= 3) {
+      return digits;
+    } else if (digits.length <= 6) {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+    } else {
+      return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 10)}`;
     }
-    setMobileNumber(value);
+  };
+
+  // Handle phone input
+  const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatted = formatPhoneNumber(e.target.value);
+    setMobileNumber(formatted);
     setError("");
   };
 
   const validatePhone = (phone: string): boolean => {
-    // Remove all non-digit characters except +
-    const cleaned = phone.replace(/[^\d\+]/g, "");
-    // Must have at least 7 digits (minimum for valid phone)
-    const digits = cleaned.replace(/\+/g, "");
+    const digits = phone.replace(/\D/g, "");
     return digits.length >= 7 && digits.length <= 15;
   };
 
-  // Format phone to E.164 format for storage
+  // Get the actual country code from the selected country name
+  const getSelectedCountryCode = (): string => {
+    const country = COUNTRY_CODES.find((c) => c.name === countryCode);
+    return country?.code || "+1";
+  };
+
+  // Format phone to E.164 format for storage using selected country code
   const formatToE164 = (phone: string): string => {
-    const cleaned = phone.replace(/[^\d\+]/g, "");
-    // If already starts with +, use as-is
-    if (cleaned.startsWith("+")) {
-      return cleaned;
-    }
-    // If 10 digits, assume US and add +1
-    if (cleaned.length === 10) {
-      return `+1${cleaned}`;
-    }
-    // If 11 digits starting with 1, assume US
-    if (cleaned.length === 11 && cleaned.startsWith("1")) {
-      return `+${cleaned}`;
-    }
-    // Otherwise add + prefix
-    return `+${cleaned}`;
+    const digits = phone.replace(/\D/g, "");
+    return getSelectedCountryCode() + digits;
   };
 
   const validateForm = (): string | null => {
     if (!firstName.trim()) return "Please enter your first name";
     if (!lastName.trim()) return "Please enter your last name";
     if (!dateOfBirth) return "Please enter your date of birth";
-    if (!validatePhone(mobileNumber)) return "Please enter a valid phone number (include country code for international)";
+    if (!validatePhone(mobileNumber)) return "Please enter a valid phone number (7-15 digits)";
     if (!consentGiven) return "Please agree to the terms to continue";
     return null;
   };
@@ -179,22 +209,38 @@ export function WidgetPhoneInput({
             />
           </div>
 
-          {/* Phone Number */}
+          {/* Phone Number with Country Code */}
           <div className="space-y-1">
             <Label htmlFor="mobile" className="text-xs flex items-center gap-1 text-gray-700">
               <Phone className="h-3 w-3" />
               Mobile Number
             </Label>
-            <Input
-              id="mobile"
-              type="tel"
-              placeholder="+1 555 555 5555"
-              value={mobileNumber}
-              onChange={handlePhoneChange}
-              className="h-9 text-sm"
-              required
-            />
-            <p className="text-[10px] text-gray-400">Include country code for international (e.g., +44, +91)</p>
+            <div className="flex gap-2">
+              <Select value={countryCode} onValueChange={setCountryCode}>
+                <SelectTrigger className="w-[90px] h-9 text-sm">
+                  <SelectValue>
+                    {COUNTRY_CODES.find((c) => c.name === countryCode)?.flag}{" "}
+                    {COUNTRY_CODES.find((c) => c.name === countryCode)?.code}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {COUNTRY_CODES.map((country) => (
+                    <SelectItem key={country.name} value={country.name}>
+                      {country.flag} {country.code} ({country.name})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
+                id="mobile"
+                type="tel"
+                placeholder="Phone number"
+                value={mobileNumber}
+                onChange={handlePhoneChange}
+                className="flex-1 h-9 text-sm"
+                required
+              />
+            </div>
           </div>
 
           {/* Instagram (optional) */}
