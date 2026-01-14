@@ -1,15 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAdminFirestore } from "@/lib/firebase-admin";
-import { requireAuth } from "@/lib/auth-middleware";
+import { getSession } from "@/lib/auth-admin";
 
-export async function GET(request: Request) {
-  // Check authentication
-  const authResult = await requireAuth(request);
-  if (authResult instanceof NextResponse) {
-    return authResult;
-  }
-
+export async function GET() {
   try {
+    // Check authentication
+    const session = await getSession();
+    if (!session) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
     const db = getAdminFirestore();
 
     // Get all conversations
