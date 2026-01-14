@@ -9,6 +9,7 @@ import type { Conversation, Message, MessageSender } from "@/types";
 import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { AutoExpandingTextarea } from "@/components/ui/auto-expanding-textarea";
 import { subscribeToMessages } from "@/lib/firebase";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
@@ -599,7 +600,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
     }
   };
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSend();
@@ -688,21 +689,21 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
 
       {/* Input - sticky at bottom */}
       <div className="border-t bg-gray-50 p-3 safe-area-bottom">
-        <div className="flex gap-2">
-          <Input
-            ref={inputRef}
+        <div className="flex gap-2 items-end">
+          <AutoExpandingTextarea
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
-            className="flex-1 rounded-full border-gray-200 bg-white px-4 h-10"
+            className="flex-1 rounded-2xl border-gray-200 bg-white px-4 py-3 min-h-[80px]"
+            maxHeight={160}
             disabled={isSending || conversation.status !== "active"}
           />
           <Button
             onClick={handleSend}
             size="icon"
             disabled={!inputValue.trim() || isSending || conversation.status !== "active"}
-            className="h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600 shrink-0"
+            className="h-10 w-10 rounded-full bg-blue-500 hover:bg-blue-600 shrink-0 mb-1"
           >
             {isSending ? (
               <Loader2 className="h-4 w-4 animate-spin" />
