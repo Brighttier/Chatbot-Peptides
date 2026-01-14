@@ -12,6 +12,7 @@ interface ConversationWithPreview extends Conversation {
     sender: MessageSender;
   };
   hasUnread?: boolean;
+  isNewConversation?: boolean; // True if never opened by this admin
   directChatRepName?: string;
 }
 
@@ -118,18 +119,31 @@ export function ConversationList({
   const activeCount = conversations.filter((c) => c.status === "active").length;
   const archivedCount = conversations.filter((c) => c.status === "archived").length;
 
+  // Get row styling based on unread status
+  const getRowStyles = (conversation: ConversationWithPreview) => {
+    if (selectedId === conversation.id) {
+      return "bg-blue-50 border border-blue-200";
+    }
+    if (conversation.hasUnread) {
+      // New conversation (never opened) = blue highlight
+      // New response (opened before) = amber/orange highlight
+      if (conversation.isNewConversation) {
+        return "bg-blue-50 border-l-4 border-l-blue-500 border-y border-r border-transparent hover:bg-blue-100";
+      }
+      return "bg-amber-50 border-l-4 border-l-amber-500 border-y border-r border-transparent hover:bg-amber-100";
+    }
+    if (conversation.status === "archived") {
+      return "bg-amber-50/30 hover:bg-amber-50/50 border border-transparent";
+    }
+    return "hover:bg-gray-100 border border-transparent";
+  };
+
   // Render a single conversation item
   const renderConversationItem = (conversation: ConversationWithPreview) => (
     <button
       key={conversation.id}
       onClick={() => onSelect(conversation)}
-      className={`w-full rounded-lg p-3 text-left transition-all ${
-        selectedId === conversation.id
-          ? "bg-blue-50 border border-blue-200"
-          : conversation.status === "archived"
-          ? "bg-amber-50/50 hover:bg-amber-50 border border-transparent"
-          : "hover:bg-gray-100 border border-transparent"
-      }`}
+      className={`w-full rounded-lg p-3 text-left transition-all ${getRowStyles(conversation)}`}
     >
       <div className="flex items-start gap-3">
         {/* Avatar */}
@@ -229,9 +243,11 @@ export function ConversationList({
           </div>
         </div>
 
-        {/* Unread indicator - shows blue dot for unread messages */}
+        {/* Unread indicator - color matches new vs response */}
         {conversation.hasUnread ? (
-          <div className="h-2.5 w-2.5 rounded-full bg-blue-500 mt-2 shrink-0 animate-pulse" />
+          <div className={`h-2.5 w-2.5 rounded-full mt-2 shrink-0 animate-pulse ${
+            conversation.isNewConversation ? "bg-blue-500" : "bg-amber-500"
+          }`} />
         ) : conversation.status === "active" ? (
           <div className="h-2 w-2 rounded-full bg-green-500 mt-2 shrink-0" />
         ) : null}

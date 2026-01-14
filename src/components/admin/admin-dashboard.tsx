@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { subscribeToMessages } from "@/lib/firebase";
 import { Timestamp } from "firebase/firestore";
 import { useAuth } from "@/contexts/auth-context";
+import { useNotificationSound } from "@/hooks/useNotificationSound";
 import Link from "next/link";
 import Image from "next/image";
 
@@ -33,6 +34,7 @@ const DEFAULT_PANEL_WIDTH = 320;
 
 export function AdminDashboard() {
   const { user, logout, hasRole } = useAuth();
+  const { playNotificationSound } = useNotificationSound();
   const [conversations, setConversations] = useState<ConversationWithPreview[]>(
     []
   );
@@ -46,6 +48,7 @@ export function AdminDashboard() {
   const [showCustomerDetails, setShowCustomerDetails] = useState(true);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const previousUnreadCountRef = useRef<number>(0);
 
   // Check if user can access settings (all roles can access for canned responses)
   const canAccessSettings = hasRole(["super_admin", "admin", "rep"]);
@@ -116,6 +119,14 @@ export function AdminDashboard() {
   useEffect(() => {
     selectedConversationRef.current = selectedConversation;
   }, [selectedConversation]);
+
+  // Play notification sound when unread count increases
+  useEffect(() => {
+    if (unreadCount > previousUnreadCountRef.current && previousUnreadCountRef.current >= 0) {
+      playNotificationSound();
+    }
+    previousUnreadCountRef.current = unreadCount;
+  }, [unreadCount, playNotificationSound]);
 
   // Fetch conversations function
   const fetchConversations = useCallback(async () => {

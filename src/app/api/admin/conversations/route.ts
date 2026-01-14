@@ -10,6 +10,7 @@ export interface ConversationWithPreview extends Conversation {
     sender: MessageSender;
   };
   hasUnread?: boolean;
+  isNewConversation?: boolean; // True if never opened by this admin (vs new response in existing chat)
   directChatRepName?: string;
 }
 
@@ -112,6 +113,8 @@ export async function GET(request: NextRequest) {
           if (lastMessageSender === "USER") {
             if (!lastReadAt || lastMessageTime > lastReadAt) {
               conv.hasUnread = true;
+              // Distinguish: isNewConversation (never opened) vs hasNewResponse (opened before)
+              conv.isNewConversation = !lastReadAt;
               unreadCount++;
             }
           }
