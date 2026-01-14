@@ -37,19 +37,20 @@ export function ChatBubble({
 
   return (
     <>
-      {/* "Talk to us" Banner - Only visible when chat is closed */}
+      {/* "Chat with our protocol concierge now" Label - Above the bubble */}
       {!isOpen && (
         <div
-          className="fixed flex items-center gap-3 px-4 py-2.5 rounded-full shadow-lg transition-all duration-300 ease-in-out pointer-events-none z-[9998] animate-fade-in"
+          className="fixed flex items-center justify-center px-3 py-2 rounded-xl shadow-lg transition-all duration-300 ease-in-out pointer-events-none z-[9998] animate-fade-in"
           style={{
             backgroundColor: primaryColor,
-            bottom: "0px",
-            right: position === "bottom-right" ? "calc(4rem + 76px)" : undefined,
-            left: position === "bottom-left" ? "calc(4rem + 76px)" : undefined,
+            bottom: "68px",
+            right: position === "bottom-right" ? "4px" : undefined,
+            left: position === "bottom-left" ? "4px" : undefined,
+            maxWidth: "200px",
           }}
         >
-          <span className="text-white font-medium text-sm sm:text-base whitespace-nowrap">
-            Talk to us
+          <span className="text-white font-medium text-xs sm:text-sm text-center leading-tight">
+            Chat with our protocol concierge now
           </span>
         </div>
       )}
