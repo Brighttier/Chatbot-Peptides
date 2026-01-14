@@ -204,6 +204,7 @@ export interface WidgetSettings {
   size: WidgetSize;
   borderRadius: number; // px
   showPoweredBy: boolean;
+  bubbleLabel: string; // Label text shown above chat bubble
 }
 
 export interface AppSettings {

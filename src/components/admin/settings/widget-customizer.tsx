@@ -31,6 +31,7 @@ interface WidgetSettings {
   expandDelay: number;
   size: "compact" | "standard" | "large";
   borderRadius: number;
+  bubbleLabel: string;
 }
 
 const defaultSettings: WidgetSettings = {
@@ -47,6 +48,7 @@ const defaultSettings: WidgetSettings = {
   expandDelay: 3000,
   size: "standard",
   borderRadius: 16,
+  bubbleLabel: "Chat with our protocol concierge now",
 };
 
 const sizeOptions = {
@@ -410,6 +412,22 @@ export function WidgetCustomizer() {
           {activeTab === "text" && (
             <div className="bg-white rounded-lg border p-4 space-y-4">
               <h3 className="font-medium text-gray-900">Text Settings</h3>
+
+              <div className="space-y-2">
+                <Label htmlFor="bubble-label">Bubble Label</Label>
+                <Input
+                  id="bubble-label"
+                  value={settings.bubbleLabel}
+                  onChange={(e) =>
+                    setSettings({ ...settings, bubbleLabel: e.target.value })
+                  }
+                  placeholder="Chat with our protocol concierge now"
+                  maxLength={50}
+                />
+                <p className="text-xs text-gray-500">
+                  Text shown above the chat bubble when closed. Leave empty to hide.
+                </p>
+              </div>
 
               <div className="space-y-2">
                 <Label htmlFor="welcome-message">Welcome Message</Label>

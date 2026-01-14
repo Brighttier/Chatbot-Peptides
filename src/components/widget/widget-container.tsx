@@ -31,6 +31,7 @@ interface WidgetContainerProps {
   welcomeMessage?: string;
   autoExpand?: boolean;
   expandDelay?: number;
+  bubbleLabel?: string;
 }
 
 const sizeMap = {
@@ -48,6 +49,7 @@ export function WidgetContainer({
   welcomeMessage = "Hi! How can I help you today?",
   autoExpand = false,
   expandDelay = 3000,
+  bubbleLabel = "Chat with our protocol concierge now",
 }: WidgetContainerProps) {
   const [step, setStep] = useState<WidgetStep>("collapsed");
   const [conversationId, setConversationId] = useState<string | null>(null);
@@ -317,6 +319,7 @@ export function WidgetContainer({
         position={position}
         primaryColor={primaryColor}
         pulseAnimation={!isOpen}
+        bubbleLabel={bubbleLabel}
       />
 
       {/* Expanded Widget */}

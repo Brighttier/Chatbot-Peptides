@@ -24,6 +24,7 @@ export async function GET() {
           expandDelay: 3000,
           size: "standard",
           borderRadius: 16,
+          bubbleLabel: "Chat with our protocol concierge now",
         },
       });
     }
@@ -47,6 +48,7 @@ export async function GET() {
         size: data?.widget?.size || "standard",
         borderRadius: data?.widget?.borderRadius || 16,
         logo: data?.widget?.logo,
+        bubbleLabel: data?.widget?.bubbleLabel ?? "Chat with our protocol concierge now",
       },
     });
   } catch (error) {
@@ -67,6 +69,7 @@ export async function GET() {
         expandDelay: 3000,
         size: "standard",
         borderRadius: 16,
+        bubbleLabel: "Chat with our protocol concierge now",
       },
     });
   }

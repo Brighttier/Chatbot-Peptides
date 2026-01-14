@@ -10,7 +10,8 @@
   window.PeptideChatLoaded = true;
 
   // Size constants
-  var BUBBLE_SIZE = 100; // Increased to accommodate pulse animation
+  var BUBBLE_WIDTH = 220; // Width to accommodate label
+  var BUBBLE_HEIGHT = 140; // Height for bubble + label above it
   var EXPANDED_WIDTH = 420;
   var EXPANDED_HEIGHT = 650;
 
@@ -59,7 +60,7 @@
     container.style.cssText =
       "position:fixed !important;bottom:16px !important;" +
       (config.position === "bottom-left" ? "left:16px !important;" : "right:16px !important;") +
-      "width:" + BUBBLE_SIZE + "px;height:" + BUBBLE_SIZE + "px;" +
+      "width:" + BUBBLE_WIDTH + "px;height:" + BUBBLE_HEIGHT + "px;" +
       "pointer-events:none;z-index:" + config.zIndex + " !important;" +
       "transition:width 0.3s ease,height 0.3s ease;" +
       "transform:none !important;will-change:auto;contain:layout;";
@@ -121,9 +122,9 @@
             container.style.width = maxWidth + "px";
             container.style.height = maxHeight + "px";
           } else {
-            // Collapsed state - bubble only
-            container.style.width = BUBBLE_SIZE + "px";
-            container.style.height = BUBBLE_SIZE + "px";
+            // Collapsed state - bubble + label
+            container.style.width = BUBBLE_WIDTH + "px";
+            container.style.height = BUBBLE_HEIGHT + "px";
           }
         }
         break;

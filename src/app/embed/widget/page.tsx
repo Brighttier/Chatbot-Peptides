@@ -19,6 +19,7 @@ interface WidgetSettings {
   welcomeMessage?: string;
   autoExpand?: boolean;
   expandDelay?: number;
+  bubbleLabel?: string;
 }
 
 function WidgetContent() {
@@ -73,6 +74,7 @@ function WidgetContent() {
       welcomeMessage={settings?.welcomeMessage || "Hi! How can I help you today?"}
       autoExpand={settings?.autoExpand || false}
       expandDelay={settings?.expandDelay || 3000}
+      bubbleLabel={settings?.bubbleLabel ?? "Chat with our protocol concierge now"}
     />
   );
 }

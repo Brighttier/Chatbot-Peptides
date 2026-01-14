@@ -10,6 +10,7 @@ interface ChatBubbleProps {
   primaryColor?: string;
   unreadCount?: number;
   pulseAnimation?: boolean;
+  bubbleLabel?: string;
 }
 
 export function ChatBubble({
@@ -19,6 +20,7 @@ export function ChatBubble({
   primaryColor = "#2563eb",
   unreadCount = 0,
   pulseAnimation = true,
+  bubbleLabel = "Chat with our protocol concierge now",
 }: ChatBubbleProps) {
   const [showPulse, setShowPulse] = useState(pulseAnimation);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -37,20 +39,20 @@ export function ChatBubble({
 
   return (
     <>
-      {/* "Chat with our protocol concierge now" Label - Above the bubble */}
-      {!isOpen && (
+      {/* Bubble Label - Above the bubble */}
+      {!isOpen && bubbleLabel && (
         <div
           className="fixed flex items-center justify-center px-3 py-2 rounded-xl shadow-lg transition-all duration-300 ease-in-out pointer-events-none z-[9998] animate-fade-in"
           style={{
             backgroundColor: primaryColor,
-            bottom: "68px",
-            right: position === "bottom-right" ? "4px" : undefined,
-            left: position === "bottom-left" ? "4px" : undefined,
-            maxWidth: "200px",
+            bottom: "72px",
+            right: position === "bottom-right" ? "0px" : undefined,
+            left: position === "bottom-left" ? "0px" : undefined,
+            maxWidth: "210px",
           }}
         >
           <span className="text-white font-medium text-xs sm:text-sm text-center leading-tight">
-            Chat with our protocol concierge now
+            {bubbleLabel}
           </span>
         </div>
       )}
@@ -59,7 +61,7 @@ export function ChatBubble({
       <button
         onClick={onClick}
         className={`
-          fixed ${positionClasses}
+          fixed
           w-14 h-14 sm:w-16 sm:h-16
           rounded-full shadow-lg
           flex items-center justify-center
@@ -71,6 +73,8 @@ export function ChatBubble({
         style={{
           backgroundColor: primaryColor,
           bottom: "0px",
+          right: position === "bottom-right" ? "0px" : undefined,
+          left: position === "bottom-left" ? "0px" : undefined,
         }}
         aria-label={isOpen ? "Close chat" : "Open chat"}
       >
