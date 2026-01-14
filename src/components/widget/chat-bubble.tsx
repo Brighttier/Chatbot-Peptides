@@ -51,7 +51,7 @@ export function ChatBubble({
             maxWidth: "210px",
           }}
         >
-          <span className="text-white font-medium text-xs sm:text-sm text-center leading-tight">
+          <span className="text-white font-bold text-xs sm:text-sm text-center leading-tight">
             {bubbleLabel}
           </span>
         </div>
