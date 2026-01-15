@@ -6,9 +6,10 @@ import { ChatView } from "./chat-view";
 import { CustomerDetails } from "./customer-details";
 import { NotificationBell } from "./notification-bell";
 import type { Conversation, Message, MessageSender } from "@/types";
-import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut } from "lucide-react";
+import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut, Zap, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { AutoExpandingTextarea } from "@/components/ui/auto-expanding-textarea";
 import { subscribeToMessages } from "@/lib/firebase";
 import { Timestamp } from "firebase/firestore";
@@ -522,12 +523,25 @@ interface DisplayMessage {
   timestamp: Date;
 }
 
+interface CannedResponse {
+  id: string;
+  shortcut: string;
+  title: string;
+  content: string;
+  category: string;
+}
+
 function ChatViewMobile({ conversation }: { conversation: Conversation | null }) {
   const [messages, setMessages] = useState<DisplayMessage[]>([]);
   const [inputValue, setInputValue] = useState("");
   const [isSending, setIsSending] = useState(false);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Canned responses state
+  const [showCannedResponses, setShowCannedResponses] = useState(false);
+  const [cannedResponses, setCannedResponses] = useState<CannedResponse[]>([]);
+  const [cannedFilter, setCannedFilter] = useState("");
 
   const convertMessages = useCallback(
     (firestoreMessages: Message[]): DisplayMessage[] => {
@@ -562,6 +576,45 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
       scrollAreaRef.current.scrollTop = scrollAreaRef.current.scrollHeight;
     }
   }, [messages]);
+
+  // Fetch canned responses on mount
+  useEffect(() => {
+    fetch("/api/admin/canned-responses")
+      .then((res) => res.json())
+      .then((data) => setCannedResponses(data.responses || []))
+      .catch((err) => console.error("Failed to fetch canned responses:", err));
+  }, []);
+
+  // Filter canned responses based on search/shortcut
+  const filteredCannedResponses = cannedResponses.filter((r) => {
+    const query = cannedFilter.toLowerCase();
+    return (
+      r.shortcut.toLowerCase().includes(query) ||
+      r.title.toLowerCase().includes(query) ||
+      r.content.toLowerCase().includes(query)
+    );
+  });
+
+  // Handle input change - detect "/" to open canned responses
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const value = e.target.value;
+    setInputValue(value);
+
+    // Auto-open canned responses when typing /
+    if (value.startsWith("/")) {
+      setShowCannedResponses(true);
+      setCannedFilter(value);
+    } else if (showCannedResponses && !value.startsWith("/")) {
+      setCannedFilter("");
+    }
+  };
+
+  // Select a canned response
+  const selectCannedResponse = (response: CannedResponse) => {
+    setInputValue(response.content);
+    setShowCannedResponses(false);
+    setCannedFilter("");
+  };
 
   const formatTime = (date: Date): string => {
     return date.toLocaleTimeString("en-US", {
@@ -630,7 +683,7 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
   }
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-white relative">
       {/* Messages */}
       <div
         ref={scrollAreaRef}
@@ -687,12 +740,86 @@ function ChatViewMobile({ conversation }: { conversation: Conversation | null })
         </div>
       </div>
 
+      {/* Canned Responses Bottom Sheet */}
+      {showCannedResponses && (
+        <div className="absolute bottom-0 left-0 right-0 bg-white border-t rounded-t-2xl shadow-lg z-10 animate-in slide-in-from-bottom duration-200">
+          {/* Header */}
+          <div className="flex items-center justify-between p-3 border-b">
+            <span className="font-medium text-sm">Quick Responses</span>
+            <button
+              onClick={() => {
+                setShowCannedResponses(false);
+                setCannedFilter("");
+              }}
+              className="p-1 hover:bg-gray-100 rounded-full"
+            >
+              <X className="h-5 w-5 text-gray-500" />
+            </button>
+          </div>
+
+          {/* Search */}
+          <div className="p-2 border-b">
+            <Input
+              placeholder="Search responses..."
+              value={cannedFilter.startsWith("/") ? cannedFilter.slice(1) : cannedFilter}
+              onChange={(e) => setCannedFilter(e.target.value)}
+              className="h-9 text-sm"
+              autoFocus
+            />
+          </div>
+
+          {/* List */}
+          <ScrollArea className="max-h-[40vh]">
+            {filteredCannedResponses.length === 0 ? (
+              <div className="p-4 text-center text-gray-400 text-sm">
+                No responses found
+              </div>
+            ) : (
+              filteredCannedResponses.map((response) => (
+                <button
+                  key={response.id}
+                  onClick={() => selectCannedResponse(response)}
+                  className="w-full p-3 text-left border-b hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center gap-2">
+                    <code className="text-xs bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-medium">
+                      /{response.shortcut}
+                    </code>
+                    <span className="font-medium text-sm">{response.title}</span>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1 line-clamp-2">
+                    {response.content}
+                  </p>
+                </button>
+              ))
+            )}
+          </ScrollArea>
+        </div>
+      )}
+
       {/* Input - sticky at bottom */}
       <div className="border-t bg-gray-50 p-3 safe-area-bottom">
+        {/* Zap button for canned responses */}
+        <div className="flex items-center gap-2 mb-2">
+          <button
+            onClick={() => setShowCannedResponses(!showCannedResponses)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors ${
+              showCannedResponses
+                ? "bg-blue-500 text-white"
+                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+            }`}
+            disabled={conversation.status !== "active"}
+          >
+            <Zap className="h-3.5 w-3.5" />
+            Quick Replies
+          </button>
+          <span className="text-xs text-gray-400">or type / to search</span>
+        </div>
+
         <div className="flex gap-2 items-end">
           <AutoExpandingTextarea
             value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
             className="flex-1 rounded-2xl border-gray-200 bg-white px-4 py-3 min-h-[80px]"

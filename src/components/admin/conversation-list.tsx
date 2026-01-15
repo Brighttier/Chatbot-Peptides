@@ -1,10 +1,18 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { MessageSquare, User, Archive, Inbox, Merge, Loader2, LayoutList, List } from "lucide-react";
+import { MessageSquare, User, Archive, Inbox, Merge, Loader2, LayoutList, List, ArchiveRestore } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { Conversation, MessageSender } from "@/types";
+
+// Swipe state for mobile gesture
+interface SwipeState {
+  id: string | null;
+  startX: number;
+  currentX: number;
+  swiping: boolean;
+}
 
 interface ConversationWithPreview extends Conversation {
   lastMessage?: {
@@ -36,6 +44,17 @@ export function ConversationList({
   const [viewMode, setViewMode] = useState<"standard" | "compact">("standard");
   const [isMerging, setIsMerging] = useState(false);
   const [mergeResult, setMergeResult] = useState<string | null>(null);
+
+  // Swipe-to-archive state
+  const [swipeState, setSwipeState] = useState<SwipeState>({
+    id: null,
+    startX: 0,
+    currentX: 0,
+    swiping: false,
+  });
+  const [isArchiving, setIsArchiving] = useState<string | null>(null);
+  const swipeThreshold = 80; // pixels to reveal action
+  const autoArchiveThreshold = 150; // pixels to auto-archive
 
   // Count duplicate phone numbers
   const duplicateCount = useMemo(() => {
@@ -75,6 +94,72 @@ export function ConversationList({
       // Clear result after 3 seconds
       setTimeout(() => setMergeResult(null), 3000);
     }
+  };
+
+  // Swipe handlers for mobile archive gesture
+  const handleTouchStart = (e: React.TouchEvent, conversationId: string) => {
+    setSwipeState({
+      id: conversationId,
+      startX: e.touches[0].clientX,
+      currentX: e.touches[0].clientX,
+      swiping: true,
+    });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipeState.swiping) return;
+    setSwipeState((prev) => ({
+      ...prev,
+      currentX: e.touches[0].clientX,
+    }));
+  };
+
+  const handleTouchEnd = async () => {
+    if (!swipeState.swiping || !swipeState.id) {
+      setSwipeState({ id: null, startX: 0, currentX: 0, swiping: false });
+      return;
+    }
+
+    const swipeDistance = swipeState.startX - swipeState.currentX;
+
+    if (swipeDistance > autoArchiveThreshold) {
+      // Auto-archive on large swipe
+      await archiveConversation(swipeState.id);
+    }
+
+    setSwipeState({ id: null, startX: 0, currentX: 0, swiping: false });
+  };
+
+  const archiveConversation = async (conversationId: string) => {
+    const conv = conversations.find((c) => c.id === conversationId);
+    if (!conv) return;
+
+    const shouldArchive = conv.status !== "archived";
+    setIsArchiving(conversationId);
+
+    try {
+      const response = await fetch("/api/admin/archive-conversation", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ conversationId, archive: shouldArchive }),
+      });
+
+      if (response.ok) {
+        onRefresh?.();
+      }
+    } catch (error) {
+      console.error("Archive error:", error);
+    } finally {
+      setIsArchiving(null);
+    }
+  };
+
+  // Calculate swipe offset for a conversation
+  const getSwipeOffset = (conversationId: string): number => {
+    if (swipeState.id !== conversationId || !swipeState.swiping) return 0;
+    const offset = swipeState.startX - swipeState.currentX;
+    // Only allow left swipe (positive offset), cap at max
+    return Math.max(0, Math.min(offset, 120));
   };
 
   const formatTime = (date: Date | string) => {
@@ -140,18 +225,65 @@ export function ConversationList({
     return "hover:bg-gray-100 border border-transparent";
   };
 
-  // Render a single conversation item (standard view)
-  const renderConversationItem = (conversation: ConversationWithPreview) => (
-    <button
-      key={conversation.id}
-      onClick={() => onSelect(conversation)}
-      className={`w-full rounded-lg p-3 text-left transition-all ${getRowStyles(conversation)}`}
-    >
+  // Render a single conversation item (standard view) with swipe support
+  const renderConversationItem = (conversation: ConversationWithPreview) => {
+    if (!conversation.id) return null;
+    const convId = conversation.id;
+    const swipeOffset = getSwipeOffset(convId);
+    const isThisArchiving = isArchiving === convId;
+
+    return (
+      <div
+        key={convId}
+        className="relative overflow-hidden rounded-lg"
+        onTouchStart={(e) => handleTouchStart(e, convId)}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Archive action background (revealed on swipe) */}
+        <div
+          className={`absolute inset-y-0 right-0 flex items-center justify-center transition-all ${
+            conversation.status === "archived"
+              ? "bg-green-500"
+              : "bg-amber-500"
+          }`}
+          style={{ width: Math.max(swipeOffset, 80), opacity: swipeOffset > 20 ? 1 : 0 }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              archiveConversation(convId);
+            }}
+            className="flex flex-col items-center justify-center text-white px-3"
+            disabled={isThisArchiving}
+          >
+            {isThisArchiving ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : conversation.status === "archived" ? (
+              <>
+                <ArchiveRestore className="h-5 w-5" />
+                <span className="text-xs mt-1">Restore</span>
+              </>
+            ) : (
+              <>
+                <Archive className="h-5 w-5" />
+                <span className="text-xs mt-1">Archive</span>
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Main conversation content */}
+        <button
+          onClick={() => onSelect(conversation)}
+          className={`w-full rounded-lg p-3 text-left transition-transform ${getRowStyles(conversation)}`}
+          style={{ transform: `translateX(-${swipeOffset}px)` }}
+        >
       <div className="flex items-start gap-3">
         {/* Avatar */}
         <div
           className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-            selectedId === conversation.id
+            selectedId === convId
               ? "bg-blue-500 text-white"
               : conversation.status === "archived"
               ? "bg-amber-200 text-amber-700"
@@ -254,63 +386,108 @@ export function ConversationList({
           <div className="h-2 w-2 rounded-full bg-green-500 mt-2 shrink-0" />
         ) : null}
       </div>
-    </button>
-  );
-
-  // Render compact conversation item
-  const renderCompactItem = (conversation: ConversationWithPreview) => (
-    <button
-      key={conversation.id}
-      onClick={() => onSelect(conversation)}
-      className={`w-full rounded p-2 text-left transition-all ${getRowStyles(conversation)}`}
-    >
-      <div className="flex items-center gap-2">
-        {/* Small avatar */}
-        <div
-          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
-            selectedId === conversation.id
-              ? "bg-blue-500 text-white"
-              : conversation.status === "archived"
-              ? "bg-amber-200 text-amber-700"
-              : "bg-gray-200 text-gray-600"
-          }`}
-        >
-          {conversation.customerInfo?.firstName?.[0] ||
-            (conversation.status === "archived" ? (
-              <Archive className="h-3.5 w-3.5" />
-            ) : (
-              <User className="h-3.5 w-3.5" />
-            ))}
-        </div>
-
-        {/* Name/Phone + Time on same line */}
-        <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
-          <span className="font-medium text-sm truncate">
-            {conversation.customerInfo?.firstName ||
-              conversation.userMobileNumber.replace(/^\+1/, "")}
-          </span>
-          {conversation.lastMessage && (
-            <span className="text-xs text-gray-400 shrink-0">
-              {formatTime(conversation.lastMessage.timestamp)}
-            </span>
-          )}
-        </div>
-
-        {/* Status indicators */}
-        {conversation.hasUnread ? (
-          <div
-            className={`h-2 w-2 rounded-full shrink-0 animate-pulse ${
-              conversation.isNewConversation ? "bg-blue-500" : "bg-amber-500"
-            }`}
-          />
-        ) : conversation.status === "active" ? (
-          <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
-        ) : (
-          <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
-        )}
+        </button>
       </div>
-    </button>
-  );
+    );
+  };
+
+  // Render compact conversation item with swipe support
+  const renderCompactItem = (conversation: ConversationWithPreview) => {
+    if (!conversation.id) return null;
+    const convId = conversation.id;
+    const swipeOffset = getSwipeOffset(convId);
+    const isThisArchiving = isArchiving === convId;
+
+    return (
+      <div
+        key={convId}
+        className="relative overflow-hidden rounded"
+        onTouchStart={(e) => handleTouchStart(e, convId)}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+      >
+        {/* Archive action background (revealed on swipe) */}
+        <div
+          className={`absolute inset-y-0 right-0 flex items-center justify-center transition-all ${
+            conversation.status === "archived"
+              ? "bg-green-500"
+              : "bg-amber-500"
+          }`}
+          style={{ width: Math.max(swipeOffset, 60), opacity: swipeOffset > 20 ? 1 : 0 }}
+        >
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              archiveConversation(convId);
+            }}
+            className="flex items-center justify-center text-white px-2"
+            disabled={isThisArchiving}
+          >
+            {isThisArchiving ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : conversation.status === "archived" ? (
+              <ArchiveRestore className="h-4 w-4" />
+            ) : (
+              <Archive className="h-4 w-4" />
+            )}
+          </button>
+        </div>
+
+        {/* Main conversation content */}
+        <button
+          onClick={() => onSelect(conversation)}
+          className={`w-full rounded p-2 text-left transition-transform ${getRowStyles(conversation)}`}
+          style={{ transform: `translateX(-${swipeOffset}px)` }}
+        >
+          <div className="flex items-center gap-2">
+            {/* Small avatar */}
+            <div
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs ${
+                selectedId === convId
+                  ? "bg-blue-500 text-white"
+                  : conversation.status === "archived"
+                  ? "bg-amber-200 text-amber-700"
+                  : "bg-gray-200 text-gray-600"
+              }`}
+            >
+              {conversation.customerInfo?.firstName?.[0] ||
+                (conversation.status === "archived" ? (
+                  <Archive className="h-3.5 w-3.5" />
+                ) : (
+                  <User className="h-3.5 w-3.5" />
+                ))}
+            </div>
+
+            {/* Name/Phone + Time on same line */}
+            <div className="flex-1 min-w-0 flex items-center justify-between gap-2">
+              <span className="font-medium text-sm truncate">
+                {conversation.customerInfo?.firstName ||
+                  conversation.userMobileNumber.replace(/^\+1/, "")}
+              </span>
+              {conversation.lastMessage && (
+                <span className="text-xs text-gray-400 shrink-0">
+                  {formatTime(conversation.lastMessage.timestamp)}
+                </span>
+              )}
+            </div>
+
+            {/* Status indicators */}
+            {conversation.hasUnread ? (
+              <div
+                className={`h-2 w-2 rounded-full shrink-0 animate-pulse ${
+                  conversation.isNewConversation ? "bg-blue-500" : "bg-amber-500"
+                }`}
+              />
+            ) : conversation.status === "active" ? (
+              <div className="h-1.5 w-1.5 rounded-full bg-green-500 shrink-0" />
+            ) : (
+              <div className="h-1.5 w-1.5 rounded-full bg-amber-400 shrink-0" />
+            )}
+          </div>
+        </button>
+      </div>
+    );
+  };
 
   return (
     <div className="flex h-full flex-col border-r bg-gray-50/50">
