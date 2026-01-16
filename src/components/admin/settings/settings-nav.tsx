@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Users, Plug, Palette, Code, MessageSquareText, DollarSign, Sparkles, Contact } from "lucide-react";
+import { Users, Plug, Palette, Code, MessageSquareText, DollarSign, Sparkles, Contact, Bug } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 
 interface NavItem {
@@ -60,6 +60,12 @@ const navItems: NavItem[] = [
     href: "/admin/settings/canned-responses",
     label: "Canned Responses",
     icon: <MessageSquareText className="h-4 w-4" />,
+  },
+  {
+    href: "/admin/settings/beta-feedback",
+    label: "Beta Feedback",
+    icon: <Bug className="h-4 w-4" />,
+    adminOnly: true,
   },
 ];
 

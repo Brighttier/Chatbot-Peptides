@@ -6,7 +6,7 @@ import { ChatView } from "./chat-view";
 import { CustomerDetails } from "./customer-details";
 import { NotificationBell } from "./notification-bell";
 import type { Conversation, Message, MessageSender } from "@/types";
-import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut, Zap, X } from "lucide-react";
+import { Loader2, ArrowLeft, Info, Send, User, UserCircle, Bot, MessageSquare, Phone, Instagram, MessageCircle, Clock, Hash, Settings, LogOut, Zap, X, Bug } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -285,6 +285,17 @@ export function AdminDashboard() {
               </div>
             </div>
 
+            {/* Feedback Tickets button - only for admin/super_admin */}
+            {canAccessSettings && (
+              <Link
+                href="/admin/feedback"
+                className="p-2 rounded-lg hover:bg-gray-100 text-gray-600 hover:text-gray-900 transition-colors"
+                title="Feedback Tickets"
+              >
+                <Bug className="h-5 w-5" />
+              </Link>
+            )}
+
             {/* Settings button - only for admin/super_admin */}
             {canAccessSettings && (
               <Link
@@ -416,6 +427,15 @@ export function AdminDashboard() {
                     }))}
                   onConversationClick={handleNotificationClick}
                 />
+                {canAccessSettings && (
+                  <Link
+                    href="/admin/feedback"
+                    className="p-2 rounded-lg hover:bg-gray-100 text-gray-600"
+                    title="Feedback Tickets"
+                  >
+                    <Bug className="h-5 w-5" />
+                  </Link>
+                )}
                 {canAccessSettings && (
                   <Link
                     href="/admin/settings"

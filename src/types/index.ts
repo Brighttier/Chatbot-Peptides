@@ -389,3 +389,32 @@ export interface ConversationSaleInfo {
   lastSaleKeywordAt?: Timestamp;
   saleKeywordsCount?: number;
 }
+
+// ==========================================
+// Beta Feedback Types
+// ==========================================
+
+export type FeedbackType = "bug" | "feature" | "other";
+export type FeedbackStatus = "open" | "pending" | "in_progress" | "completed" | "cancelled";
+
+export interface FeedbackTicket {
+  id?: string;
+  type: FeedbackType;
+  title: string;
+  description: string;
+  reporterName: string;
+  reporterEmail: string;
+  screenshotUrl?: string;
+  status: FeedbackStatus;
+  adminNotes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+  resolvedAt?: Timestamp;
+  resolvedBy?: { uid: string; name: string };
+}
+
+export interface BetaFeedbackSettings {
+  isEnabled: boolean;
+  buttonLabel: string;
+  buttonColor: string;
+}

@@ -1,5 +1,6 @@
 import { initializeApp, getApps, cert, App } from "firebase-admin/app";
 import { getFirestore, Firestore, Timestamp, FieldValue } from "firebase-admin/firestore";
+import { getStorage, Storage } from "firebase-admin/storage";
 import type {
   Conversation,
   Message,
@@ -16,6 +17,7 @@ import type {
 // Initialize Firebase Admin (for server-side operations)
 let adminApp: App;
 let adminDb: Firestore;
+let adminStorage: Storage;
 
 /**
  * Helper function to safely convert Firestore Timestamp to Date
@@ -87,6 +89,13 @@ export function getAdminFirestore(): Firestore {
     adminDb = getFirestore(getAdminApp(), databaseId);
   }
   return adminDb;
+}
+
+export function getAdminStorage(): Storage {
+  if (!adminStorage) {
+    adminStorage = getStorage(getAdminApp());
+  }
+  return adminStorage;
 }
 
 // Find existing conversation (active only)
