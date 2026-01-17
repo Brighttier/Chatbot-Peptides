@@ -13,6 +13,7 @@ interface FeedbackModalProps {
   embedded?: boolean; // For popup window mode (no overlay backdrop)
   initialScreenshot?: string | null; // Pre-captured screenshot from parent website
   onRetakeScreenshot?: () => Promise<string | null>; // Handler to request new screenshot from parent
+  onSelectArea?: () => Promise<string | null>; // Handler to request area selection from parent
 }
 
 export function FeedbackModal({
@@ -20,6 +21,7 @@ export function FeedbackModal({
   embedded = false,
   initialScreenshot = null,
   onRetakeScreenshot,
+  onSelectArea,
 }: FeedbackModalProps) {
   const [type, setType] = useState<FeedbackType>("bug");
   const [title, setTitle] = useState("");
@@ -71,6 +73,27 @@ export function FeedbackModal({
     setScreenshot(dataUrl);
     setIsCapturingArea(false);
   }, []);
+
+  // Handler for area selection from parent (embedded mode)
+  const handleSelectAreaFromParent = useCallback(async () => {
+    if (!onSelectArea) return;
+
+    setIsCapturing(true);
+    setError(null);
+    try {
+      const dataUrl = await onSelectArea();
+      if (dataUrl) {
+        setScreenshot(dataUrl);
+      } else {
+        setError("Area selection was cancelled or failed.");
+      }
+    } catch (err) {
+      console.error("Failed to capture area:", err);
+      setError("Failed to capture area. Please try again.");
+    } finally {
+      setIsCapturing(false);
+    }
+  }, [onSelectArea]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -289,8 +312,23 @@ export function FeedbackModal({
                   )}
                   {embedded && onRetakeScreenshot ? "Capture Website" : "Full Screen"}
                 </Button>
-                {/* Only show area select in non-embedded mode since we can't select areas on parent */}
-                {!embedded && (
+                {/* Show area select: in embedded mode use parent handler, otherwise local */}
+                {embedded && onSelectArea ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={handleSelectAreaFromParent}
+                    disabled={isCapturing}
+                    className="flex-1"
+                  >
+                    {isCapturing ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Scissors className="h-4 w-4 mr-2" />
+                    )}
+                    Select Area
+                  </Button>
+                ) : !embedded && (
                   <Button
                     type="button"
                     variant="outline"

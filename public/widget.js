@@ -237,6 +237,179 @@
     });
   }
 
+  // Capture a specific area of the parent website
+  function captureAreaScreenshot(rect, callback) {
+    loadHtml2Canvas(function () {
+      if (!window.html2canvas) {
+        callback(null);
+        return;
+      }
+
+      // Hide feedback button and widget during capture
+      var feedbackBtn = document.getElementById("peptide-feedback-button");
+      var widgetContainer = document.getElementById("peptide-chat-widget");
+      if (feedbackBtn) feedbackBtn.style.display = "none";
+      if (widgetContainer) widgetContainer.style.display = "none";
+
+      window.html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 1,
+        logging: false,
+        x: rect.x + window.scrollX,
+        y: rect.y + window.scrollY,
+        width: rect.width,
+        height: rect.height,
+        ignoreElements: function (element) {
+          return element.id === "peptide-feedback-button" ||
+                 element.id === "peptide-chat-widget" ||
+                 element.id === "peptide-area-selector";
+        }
+      }).then(function (canvas) {
+        if (feedbackBtn) feedbackBtn.style.display = "flex";
+        if (widgetContainer) widgetContainer.style.display = "";
+        var dataUrl = canvas.toDataURL("image/png", 0.8);
+        callback(dataUrl);
+      }).catch(function (err) {
+        console.log("Peptide Chat: Area capture failed", err);
+        if (feedbackBtn) feedbackBtn.style.display = "flex";
+        if (widgetContainer) widgetContainer.style.display = "";
+        callback(null);
+      });
+    });
+  }
+
+  // Show area selector overlay on parent website
+  function showAreaSelector(popupSource) {
+    // Hide feedback button and widget during selection
+    var feedbackBtn = document.getElementById("peptide-feedback-button");
+    var widgetContainer = document.getElementById("peptide-chat-widget");
+    if (feedbackBtn) feedbackBtn.style.display = "none";
+    if (widgetContainer) widgetContainer.style.display = "none";
+
+    // Create overlay
+    var overlay = document.createElement("div");
+    overlay.id = "peptide-area-selector";
+    overlay.style.cssText = "position:fixed;inset:0;z-index:99999;cursor:crosshair;background:rgba(0,0,0,0.3);";
+
+    // Instructions
+    var instructions = document.createElement("div");
+    instructions.style.cssText = "position:absolute;top:16px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,0.8);color:white;padding:8px 16px;border-radius:8px;font-size:14px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;";
+    instructions.textContent = "Click and drag to select an area. Press ESC to cancel.";
+    overlay.appendChild(instructions);
+
+    // Selection box (hidden initially)
+    var selectionBox = document.createElement("div");
+    selectionBox.style.cssText = "position:absolute;border:2px solid #3B82F6;background:rgba(59,130,246,0.1);pointer-events:none;display:none;";
+    overlay.appendChild(selectionBox);
+
+    // Size indicator
+    var sizeIndicator = document.createElement("div");
+    sizeIndicator.style.cssText = "position:absolute;background:rgba(0,0,0,0.8);color:white;padding:4px 8px;border-radius:4px;font-size:12px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;pointer-events:none;display:none;";
+    overlay.appendChild(sizeIndicator);
+
+    var startX = 0, startY = 0, isSelecting = false;
+
+    function cleanup() {
+      if (document.body.contains(overlay)) {
+        document.body.removeChild(overlay);
+      }
+      if (feedbackBtn) feedbackBtn.style.display = "flex";
+      if (widgetContainer) widgetContainer.style.display = "";
+      document.removeEventListener("keydown", handleKeyDown);
+    }
+
+    overlay.addEventListener("mousedown", function (e) {
+      isSelecting = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      selectionBox.style.left = startX + "px";
+      selectionBox.style.top = startY + "px";
+      selectionBox.style.width = "0px";
+      selectionBox.style.height = "0px";
+      selectionBox.style.display = "block";
+      sizeIndicator.style.display = "block";
+    });
+
+    overlay.addEventListener("mousemove", function (e) {
+      if (!isSelecting) return;
+      var x = Math.min(startX, e.clientX);
+      var y = Math.min(startY, e.clientY);
+      var w = Math.abs(e.clientX - startX);
+      var h = Math.abs(e.clientY - startY);
+      selectionBox.style.left = x + "px";
+      selectionBox.style.top = y + "px";
+      selectionBox.style.width = w + "px";
+      selectionBox.style.height = h + "px";
+      // Update size indicator
+      sizeIndicator.textContent = Math.round(w) + " x " + Math.round(h);
+      sizeIndicator.style.left = (x + w / 2 - 30) + "px";
+      sizeIndicator.style.top = (y + h + 8) + "px";
+    });
+
+    overlay.addEventListener("mouseup", function (e) {
+      if (!isSelecting) return;
+      isSelecting = false;
+
+      var rect = {
+        x: Math.min(startX, e.clientX),
+        y: Math.min(startY, e.clientY),
+        width: Math.abs(e.clientX - startX),
+        height: Math.abs(e.clientY - startY)
+      };
+
+      cleanup();
+
+      // Minimum size check
+      if (rect.width < 10 || rect.height < 10) {
+        if (popupSource) {
+          popupSource.postMessage({ type: "PEPTIDE_AREA_CAPTURED", data: null }, "*");
+        }
+        return;
+      }
+
+      // Capture the area
+      captureAreaScreenshot(rect, function (screenshot) {
+        if (popupSource) {
+          popupSource.postMessage({ type: "PEPTIDE_AREA_CAPTURED", data: screenshot }, "*");
+        }
+      });
+    });
+
+    // ESC to cancel
+    function handleKeyDown(e) {
+      if (e.key === "Escape") {
+        cleanup();
+        if (popupSource) {
+          popupSource.postMessage({ type: "PEPTIDE_AREA_CAPTURED", data: null }, "*");
+        }
+      }
+    }
+    document.addEventListener("keydown", handleKeyDown);
+
+    document.body.appendChild(overlay);
+  }
+
+  // Global message listener for screenshot requests from popup (registered early, outside async callbacks)
+  window.addEventListener("message", function (event) {
+    if (!event.data || typeof event.data !== "object") return;
+
+    if (event.data.type === "PEPTIDE_CAPTURE_SCREENSHOT") {
+      captureParentScreenshot(function (screenshot) {
+        if (event.source) {
+          event.source.postMessage({
+            type: "PEPTIDE_SCREENSHOT_CAPTURED",
+            data: screenshot
+          }, "*");
+        }
+      });
+    }
+
+    if (event.data.type === "PEPTIDE_SELECT_AREA") {
+      showAreaSelector(event.source);
+    }
+  });
+
   // Initialize feedback button on parent website
   function initFeedbackButton() {
     var baseUrl = getBaseUrl();
@@ -319,20 +492,6 @@
         });
 
         document.body.appendChild(feedbackBtn);
-
-        // Listen for screenshot requests from popup (for retake functionality)
-        window.addEventListener("message", function (event) {
-          if (event.data && event.data.type === "PEPTIDE_CAPTURE_SCREENSHOT") {
-            captureParentScreenshot(function (screenshot) {
-              if (event.source) {
-                event.source.postMessage({
-                  type: "PEPTIDE_SCREENSHOT_CAPTURED",
-                  data: screenshot
-                }, "*");
-              }
-            });
-          }
-        });
       })
       .catch(function (err) {
         console.log("Peptide Chat: Feedback settings not available", err);

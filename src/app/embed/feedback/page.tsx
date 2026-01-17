@@ -78,6 +78,34 @@ export default function EmbedFeedbackPage() {
     });
   }, []);
 
+  // Handler to request area selection from parent window
+  const handleSelectArea = useCallback(() => {
+    return new Promise<string | null>((resolve) => {
+      if (typeof window === "undefined" || !window.opener) {
+        resolve(null);
+        return;
+      }
+
+      // Set up listener for response
+      const handleMessage = (event: MessageEvent) => {
+        if (event.data && event.data.type === "PEPTIDE_AREA_CAPTURED") {
+          window.removeEventListener("message", handleMessage);
+          resolve(event.data.data || null);
+        }
+      };
+      window.addEventListener("message", handleMessage);
+
+      // Request area selection from parent
+      window.opener.postMessage({ type: "PEPTIDE_SELECT_AREA" }, "*");
+
+      // Timeout after 60 seconds (area selection takes longer)
+      setTimeout(() => {
+        window.removeEventListener("message", handleMessage);
+        resolve(null);
+      }, 60000);
+    });
+  }, []);
+
   const handleClose = () => {
     // Close the popup window
     if (typeof window !== "undefined") {
@@ -100,6 +128,7 @@ export default function EmbedFeedbackPage() {
         embedded
         initialScreenshot={initialScreenshot}
         onRetakeScreenshot={handleRetakeScreenshot}
+        onSelectArea={handleSelectArea}
       />
     </div>
   );
