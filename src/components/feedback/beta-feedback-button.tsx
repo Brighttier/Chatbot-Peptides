@@ -13,6 +13,7 @@ interface FeedbackSettings {
 export function BetaFeedbackButton() {
   const [isEnabled, setIsEnabled] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
+  const [isInIframe, setIsInIframe] = useState(false);
   const [settings, setSettings] = useState<FeedbackSettings>({
     isEnabled: false,
     buttonLabel: "Feedback",
@@ -20,7 +21,20 @@ export function BetaFeedbackButton() {
   });
   const [isLoading, setIsLoading] = useState(true);
 
+  // Detect if running inside an iframe (widget embed context)
   useEffect(() => {
+    if (typeof window !== "undefined") {
+      setIsInIframe(window.parent !== window);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Skip fetching settings if in iframe - widget.js handles the button on parent
+    if (isInIframe) {
+      setIsLoading(false);
+      return;
+    }
+
     fetch("/api/feedback/settings")
       .then((res) => res.json())
       .then((data) => {
@@ -40,10 +54,13 @@ export function BetaFeedbackButton() {
       .finally(() => {
         setIsLoading(false);
       });
-  }, []);
+  }, [isInIframe]);
 
-  // Don't render anything while loading or if disabled
-  if (isLoading || !isEnabled) {
+  // Don't render anything if:
+  // - Still loading
+  // - Feedback is disabled
+  // - Running inside an iframe (widget.js will inject button on parent website instead)
+  if (isLoading || !isEnabled || isInIframe) {
     return null;
   }
 

@@ -10,9 +10,10 @@ import type { FeedbackType } from "@/types";
 
 interface FeedbackModalProps {
   onClose: () => void;
+  embedded?: boolean; // For popup window mode (no overlay backdrop)
 }
 
-export function FeedbackModal({ onClose }: FeedbackModalProps) {
+export function FeedbackModal({ onClose, embedded = false }: FeedbackModalProps) {
   const [type, setType] = useState<FeedbackType>("bug");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
@@ -115,30 +116,39 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
 
   // Success state
   if (submitSuccess) {
+    const successContent = (
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
+        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+          <Check className="h-8 w-8 text-green-600" />
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Thank You!</h2>
+        <p className="text-gray-600">
+          Your feedback has been submitted successfully. We&apos;ll review it and get back to you soon.
+        </p>
+      </div>
+    );
+
+    if (embedded) {
+      return (
+        <div className="min-h-screen flex items-center justify-center p-4" data-feedback-ui="true">
+          {successContent}
+        </div>
+      );
+    }
+
     return (
       <div
         className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50"
         data-feedback-ui="true"
       >
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-8 text-center">
-          <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Check className="h-8 w-8 text-green-600" />
-          </div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Thank You!</h2>
-          <p className="text-gray-600">
-            Your feedback has been submitted successfully. We&apos;ll review it and get back to you soon.
-          </p>
-        </div>
+        {successContent}
       </div>
     );
   }
 
-  return (
-    <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
-      data-feedback-ui="true"
-    >
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+  // Modal content (shared between embedded and overlay modes)
+  const modalContent = (
+    <div className={`bg-white rounded-2xl shadow-2xl w-full max-w-lg ${embedded ? "" : "max-h-[90vh]"} overflow-hidden flex flex-col`}>
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b">
           <h2 className="text-lg font-semibold text-gray-900">Submit Feedback</h2>
@@ -316,6 +326,24 @@ export function FeedbackModal({ onClose }: FeedbackModalProps) {
           </Button>
         </div>
       </div>
+  );
+
+  // Return embedded mode (for popup window - no overlay)
+  if (embedded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gray-50" data-feedback-ui="true">
+        {modalContent}
+      </div>
+    );
+  }
+
+  // Return overlay mode (for in-page modal)
+  return (
+    <div
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/50 p-4"
+      data-feedback-ui="true"
+    >
+      {modalContent}
     </div>
   );
 }
