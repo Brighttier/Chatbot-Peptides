@@ -9,7 +9,7 @@ export default function EmbedFeedbackPage() {
   const [initialScreenshot, setInitialScreenshot] = useState<string | null>(null);
 
   useEffect(() => {
-    // Try to get screenshot from opener's sessionStorage
+    // Method 1: Try to get screenshot from opener's sessionStorage (same-origin only)
     try {
       if (typeof window !== "undefined" && window.opener) {
         const screenshot = window.opener.sessionStorage.getItem("peptide-feedback-screenshot");
@@ -20,13 +20,34 @@ export default function EmbedFeedbackPage() {
         }
       }
     } catch (e) {
-      // Cross-origin access may fail - that's okay
-      console.log("Could not read screenshot from opener:", e);
+      // Cross-origin access will fail - that's expected, we'll use postMessage
+      console.log("SessionStorage access failed (cross-origin), using postMessage instead");
+    }
+
+    // Method 2: Listen for screenshot via postMessage (cross-origin support)
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data && event.data.type === "PEPTIDE_INITIAL_SCREENSHOT" && event.data.data) {
+        setInitialScreenshot(event.data.data);
+      }
+    };
+    window.addEventListener("message", handleMessage);
+
+    // Signal to parent that we're ready to receive the screenshot
+    if (typeof window !== "undefined" && window.opener) {
+      try {
+        window.opener.postMessage({ type: "PEPTIDE_FEEDBACK_READY" }, "*");
+      } catch (e) {
+        console.log("Could not send ready signal to opener:", e);
+      }
     }
 
     // Small delay to ensure styles are loaded
     const timer = setTimeout(() => setIsReady(true), 100);
-    return () => clearTimeout(timer);
+
+    return () => {
+      clearTimeout(timer);
+      window.removeEventListener("message", handleMessage);
+    };
   }, []);
 
   // Handler to request new screenshot from parent window

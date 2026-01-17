@@ -341,12 +341,12 @@
 
   // Open feedback form in popup window
   function openFeedbackPopup(baseUrl, screenshot) {
-    // Store screenshot in sessionStorage for popup to retrieve
+    // Store screenshot in sessionStorage (same-origin fallback)
     if (screenshot) {
       try {
         sessionStorage.setItem("peptide-feedback-screenshot", screenshot);
       } catch (e) {
-        console.log("Peptide Chat: Could not store screenshot", e);
+        console.log("Peptide Chat: Could not store screenshot in sessionStorage", e);
       }
     }
 
@@ -355,11 +355,36 @@
     var left = (window.screen.width - width) / 2;
     var top = (window.screen.height - height) / 2;
 
-    window.open(
+    var popup = window.open(
       baseUrl + "/embed/feedback",
       "PeptideFeedback",
       "width=" + width + ",height=" + height + ",left=" + left + ",top=" + top + ",scrollbars=yes,resizable=yes"
     );
+
+    // Send screenshot via postMessage when popup is ready (cross-origin support)
+    if (popup && screenshot) {
+      // Listen for ready signal from popup
+      var sendScreenshot = function(event) {
+        if (event.data && event.data.type === "PEPTIDE_FEEDBACK_READY") {
+          popup.postMessage({
+            type: "PEPTIDE_INITIAL_SCREENSHOT",
+            data: screenshot
+          }, "*");
+          window.removeEventListener("message", sendScreenshot);
+        }
+      };
+      window.addEventListener("message", sendScreenshot);
+
+      // Also try sending after a delay as backup
+      setTimeout(function() {
+        if (popup && !popup.closed) {
+          popup.postMessage({
+            type: "PEPTIDE_INITIAL_SCREENSHOT",
+            data: screenshot
+          }, "*");
+        }
+      }, 1000);
+    }
   }
 
   // Replace queue with actual function
