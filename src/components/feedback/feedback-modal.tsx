@@ -1,99 +1,31 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
-import { X, Camera, Scissors, Trash2, Loader2, Bug, Sparkles, HelpCircle, Check, Upload } from "lucide-react";
+import { useState, useCallback, useRef } from "react";
+import { X, Trash2, Loader2, Bug, Sparkles, HelpCircle, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { captureFullScreen, AreaSelector } from "./screenshot-capture";
 import type { FeedbackType } from "@/types";
 
 interface FeedbackModalProps {
   onClose: () => void;
   embedded?: boolean; // For popup window mode (no overlay backdrop)
-  initialScreenshot?: string | null; // Pre-captured screenshot from parent website
-  onRetakeScreenshot?: () => Promise<string | null>; // Handler to request new screenshot from parent
-  onSelectArea?: () => Promise<string | null>; // Handler to request area selection from parent
 }
 
 export function FeedbackModal({
   onClose,
   embedded = false,
-  initialScreenshot = null,
-  onRetakeScreenshot,
-  onSelectArea,
 }: FeedbackModalProps) {
   const [type, setType] = useState<FeedbackType>("bug");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [reporterEmail, setReporterEmail] = useState("");
-  const [screenshot, setScreenshot] = useState<string | null>(initialScreenshot);
-  const [isCapturingArea, setIsCapturingArea] = useState(false);
-  const [isCapturing, setIsCapturing] = useState(false);
+  const [screenshot, setScreenshot] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Update screenshot when initialScreenshot changes (e.g., on page load)
-  useEffect(() => {
-    if (initialScreenshot) {
-      setScreenshot(initialScreenshot);
-    }
-  }, [initialScreenshot]);
-
-  const handleCaptureFullScreen = useCallback(async () => {
-    setIsCapturing(true);
-    setError(null);
-    try {
-      // In embedded mode (popup), request screenshot from parent website
-      if (embedded && onRetakeScreenshot) {
-        const dataUrl = await onRetakeScreenshot();
-        if (dataUrl) {
-          setScreenshot(dataUrl);
-        } else {
-          setError("Could not capture screenshot from parent window.");
-        }
-      } else {
-        // Regular mode - capture this window
-        // Brief delay to allow modal to hide
-        await new Promise((resolve) => setTimeout(resolve, 100));
-        const dataUrl = await captureFullScreen();
-        setScreenshot(dataUrl);
-      }
-    } catch (err) {
-      console.error("Failed to capture screenshot:", err);
-      setError("Failed to capture screenshot. Please try again.");
-    } finally {
-      setIsCapturing(false);
-    }
-  }, [embedded, onRetakeScreenshot]);
-
-  const handleAreaCapture = useCallback((dataUrl: string) => {
-    setScreenshot(dataUrl);
-    setIsCapturingArea(false);
-  }, []);
-
-  // Handler for area selection from parent (embedded mode)
-  const handleSelectAreaFromParent = useCallback(async () => {
-    if (!onSelectArea) return;
-
-    setIsCapturing(true);
-    setError(null);
-    try {
-      const dataUrl = await onSelectArea();
-      if (dataUrl) {
-        setScreenshot(dataUrl);
-      }
-      // If dataUrl is null, user likely cancelled - don't show error
-    } catch (err) {
-      console.error("Failed to capture area:", err);
-      setError("Failed to capture area. Please try again.");
-    } finally {
-      setIsCapturing(false);
-    }
-  }, [onSelectArea]);
 
   // Handler for file upload
   const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -179,16 +111,6 @@ export function FeedbackModal({
       setIsSubmitting(false);
     }
   };
-
-  // Show area selector overlay
-  if (isCapturingArea) {
-    return (
-      <AreaSelector
-        onCapture={handleAreaCapture}
-        onCancel={() => setIsCapturingArea(false)}
-      />
-    );
-  }
 
   // Success state
   if (submitSuccess) {
@@ -321,7 +243,7 @@ export function FeedbackModal({
               <div className="relative">
                 <img
                   src={screenshot}
-                  alt="Captured screenshot"
+                  alt="Uploaded screenshot"
                   className="w-full rounded-lg border border-gray-200 max-h-48 object-contain bg-gray-50"
                 />
                 <button
@@ -333,59 +255,15 @@ export function FeedbackModal({
                 </button>
               </div>
             ) : (
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={handleCaptureFullScreen}
-                  disabled={isCapturing}
-                  className="flex-1"
-                >
-                  {isCapturing ? (
-                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  ) : (
-                    <Camera className="h-4 w-4 mr-2" />
-                  )}
-                  {embedded && onRetakeScreenshot ? "Capture Website" : "Full Screen"}
-                </Button>
-                {/* Show area select: in embedded mode use parent handler, otherwise local */}
-                {embedded && onSelectArea ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSelectAreaFromParent}
-                    disabled={isCapturing}
-                    className="flex-1"
-                  >
-                    {isCapturing ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Scissors className="h-4 w-4 mr-2" />
-                    )}
-                    Select Area
-                  </Button>
-                ) : !embedded && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => setIsCapturingArea(true)}
-                    className="flex-1"
-                  >
-                    <Scissors className="h-4 w-4 mr-2" />
-                    Select Area
-                  </Button>
-                )}
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isCapturing}
-                  className="flex-1"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  Upload
-                </Button>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                Upload Screenshot
+              </Button>
             )}
           </div>
 
