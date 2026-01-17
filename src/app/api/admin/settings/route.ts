@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { requireRole } from "@/lib/auth-admin";
 import { getAdminFirestore } from "@/lib/firebase-admin";
 import { FieldValue } from "firebase-admin/firestore";
+import type { UserRole } from "@/types";
 
 // GET - Get all settings
 export async function GET() {
@@ -84,7 +85,16 @@ export async function GET() {
 // PUT - Update settings
 export async function PUT(request: Request) {
   try {
-    const authResult = await requireRole(["super_admin"]);
+    const body = await request.json();
+    const { gemini, twilio, widget, betaFeedback } = body;
+
+    // Determine required role based on what's being updated
+    // Sensitive settings (gemini, twilio) require super_admin
+    // Widget and betaFeedback can be updated by admin or super_admin
+    const requiresSuperAdmin = gemini !== undefined || twilio !== undefined;
+    const requiredRoles: UserRole[] = requiresSuperAdmin ? ["super_admin"] : ["super_admin", "admin"];
+
+    const authResult = await requireRole(requiredRoles);
 
     if ("error" in authResult) {
       return NextResponse.json(
@@ -92,9 +102,6 @@ export async function PUT(request: Request) {
         { status: authResult.status }
       );
     }
-
-    const body = await request.json();
-    const { gemini, twilio, widget } = body;
 
     const db = getAdminFirestore();
     const settingsRef = db.collection("settings").doc("config");
@@ -109,7 +116,7 @@ export async function PUT(request: Request) {
       updatedBy: authResult.user.uid,
     };
 
-    // Update Gemini settings if provided
+    // Update Gemini settings if provided (super_admin only)
     if (gemini !== undefined) {
       updates.gemini = {
         ...currentSettings?.gemini,
@@ -145,6 +152,14 @@ export async function PUT(request: Request) {
           ...currentSettings?.widget?.colors,
           ...widget?.colors,
         },
+      };
+    }
+
+    // Update beta feedback settings if provided
+    if (betaFeedback !== undefined) {
+      updates.betaFeedback = {
+        ...currentSettings?.betaFeedback,
+        ...betaFeedback,
       };
     }
 

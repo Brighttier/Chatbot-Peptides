@@ -33,11 +33,12 @@ export default function BetaFeedbackSettingsPage() {
       const response = await fetch("/api/admin/settings");
       if (response.ok) {
         const data = await response.json();
-        if (data.betaFeedback) {
+        const betaFeedback = data.settings?.betaFeedback || data.betaFeedback;
+        if (betaFeedback) {
           setSettings({
-            isEnabled: data.betaFeedback.isEnabled ?? false,
-            buttonLabel: data.betaFeedback.buttonLabel || "Feedback",
-            buttonColor: data.betaFeedback.buttonColor || "#8B5CF6",
+            isEnabled: betaFeedback.isEnabled ?? false,
+            buttonLabel: betaFeedback.buttonLabel || "Feedback",
+            buttonColor: betaFeedback.buttonColor || "#8B5CF6",
           });
         }
       }
