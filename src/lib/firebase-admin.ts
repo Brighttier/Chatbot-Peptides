@@ -70,11 +70,13 @@ export function getAdminApp(): App {
         adminApp = initializeApp({
           credential: cert(parsedServiceAccount),
           projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
         });
       } else {
         // For local development or when using default credentials
         adminApp = initializeApp({
           projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+          storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
         });
       }
     }
