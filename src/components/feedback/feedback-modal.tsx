@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
-import { X, Camera, Scissors, Trash2, Loader2, Bug, Sparkles, HelpCircle, Check } from "lucide-react";
+import { useState, useCallback, useEffect, useRef } from "react";
+import { X, Camera, Scissors, Trash2, Loader2, Bug, Sparkles, HelpCircle, Check, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -34,6 +34,7 @@ export function FeedbackModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Update screenshot when initialScreenshot changes (e.g., on page load)
   useEffect(() => {
@@ -84,9 +85,8 @@ export function FeedbackModal({
       const dataUrl = await onSelectArea();
       if (dataUrl) {
         setScreenshot(dataUrl);
-      } else {
-        setError("Area selection was cancelled or failed.");
       }
+      // If dataUrl is null, user likely cancelled - don't show error
     } catch (err) {
       console.error("Failed to capture area:", err);
       setError("Failed to capture area. Please try again.");
@@ -94,6 +94,34 @@ export function FeedbackModal({
       setIsCapturing(false);
     }
   }, [onSelectArea]);
+
+  // Handler for file upload
+  const handleFileUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith("image/")) {
+      setError("Please select an image file");
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image must be less than 5MB");
+      return;
+    }
+
+    setError(null);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setScreenshot(event.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+
+    // Reset file input so same file can be selected again
+    e.target.value = "";
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -281,6 +309,14 @@ export function FeedbackModal({
           {/* Screenshot */}
           <div className="space-y-2">
             <Label className="text-sm font-medium text-gray-700">Screenshot (optional)</Label>
+            {/* Hidden file input */}
+            <input
+              type="file"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              accept="image/*"
+              className="hidden"
+            />
             {screenshot ? (
               <div className="relative">
                 <img
@@ -339,6 +375,16 @@ export function FeedbackModal({
                     Select Area
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isCapturing}
+                  className="flex-1"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Upload
+                </Button>
               </div>
             )}
           </div>
