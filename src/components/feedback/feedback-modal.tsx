@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { X, Camera, Scissors, Trash2, Loader2, Bug, Sparkles, HelpCircle, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,36 +11,61 @@ import type { FeedbackType } from "@/types";
 interface FeedbackModalProps {
   onClose: () => void;
   embedded?: boolean; // For popup window mode (no overlay backdrop)
+  initialScreenshot?: string | null; // Pre-captured screenshot from parent website
+  onRetakeScreenshot?: () => Promise<string | null>; // Handler to request new screenshot from parent
 }
 
-export function FeedbackModal({ onClose, embedded = false }: FeedbackModalProps) {
+export function FeedbackModal({
+  onClose,
+  embedded = false,
+  initialScreenshot = null,
+  onRetakeScreenshot,
+}: FeedbackModalProps) {
   const [type, setType] = useState<FeedbackType>("bug");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [reporterName, setReporterName] = useState("");
   const [reporterEmail, setReporterEmail] = useState("");
-  const [screenshot, setScreenshot] = useState<string | null>(null);
+  const [screenshot, setScreenshot] = useState<string | null>(initialScreenshot);
   const [isCapturingArea, setIsCapturingArea] = useState(false);
   const [isCapturing, setIsCapturing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Update screenshot when initialScreenshot changes (e.g., on page load)
+  useEffect(() => {
+    if (initialScreenshot) {
+      setScreenshot(initialScreenshot);
+    }
+  }, [initialScreenshot]);
+
   const handleCaptureFullScreen = useCallback(async () => {
     setIsCapturing(true);
     setError(null);
     try {
-      // Brief delay to allow modal to hide
-      await new Promise((resolve) => setTimeout(resolve, 100));
-      const dataUrl = await captureFullScreen();
-      setScreenshot(dataUrl);
+      // In embedded mode (popup), request screenshot from parent website
+      if (embedded && onRetakeScreenshot) {
+        const dataUrl = await onRetakeScreenshot();
+        if (dataUrl) {
+          setScreenshot(dataUrl);
+        } else {
+          setError("Could not capture screenshot from parent window.");
+        }
+      } else {
+        // Regular mode - capture this window
+        // Brief delay to allow modal to hide
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        const dataUrl = await captureFullScreen();
+        setScreenshot(dataUrl);
+      }
     } catch (err) {
       console.error("Failed to capture screenshot:", err);
       setError("Failed to capture screenshot. Please try again.");
     } finally {
       setIsCapturing(false);
     }
-  }, []);
+  }, [embedded, onRetakeScreenshot]);
 
   const handleAreaCapture = useCallback((dataUrl: string) => {
     setScreenshot(dataUrl);
@@ -262,17 +287,20 @@ export function FeedbackModal({ onClose, embedded = false }: FeedbackModalProps)
                   ) : (
                     <Camera className="h-4 w-4 mr-2" />
                   )}
-                  Full Screen
+                  {embedded && onRetakeScreenshot ? "Capture Website" : "Full Screen"}
                 </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => setIsCapturingArea(true)}
-                  className="flex-1"
-                >
-                  <Scissors className="h-4 w-4 mr-2" />
-                  Select Area
-                </Button>
+                {/* Only show area select in non-embedded mode since we can't select areas on parent */}
+                {!embedded && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsCapturingArea(true)}
+                    className="flex-1"
+                  >
+                    <Scissors className="h-4 w-4 mr-2" />
+                    Select Area
+                  </Button>
+                )}
               </div>
             )}
           </div>

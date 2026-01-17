@@ -182,6 +182,61 @@
     return window.location.origin;
   }
 
+  // Load html2canvas dynamically for screenshot capture
+  function loadHtml2Canvas(callback) {
+    if (window.html2canvas) {
+      callback();
+      return;
+    }
+    var script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js";
+    script.onload = callback;
+    script.onerror = function () {
+      console.log("Peptide Chat: Failed to load html2canvas");
+      callback();
+    };
+    document.head.appendChild(script);
+  }
+
+  // Capture parent website screenshot
+  function captureParentScreenshot(callback) {
+    loadHtml2Canvas(function () {
+      if (!window.html2canvas) {
+        callback(null);
+        return;
+      }
+
+      // Hide feedback button and widget during capture
+      var feedbackBtn = document.getElementById("peptide-feedback-button");
+      var widgetContainer = document.getElementById("peptide-chat-widget");
+      if (feedbackBtn) feedbackBtn.style.display = "none";
+      if (widgetContainer) widgetContainer.style.display = "none";
+
+      window.html2canvas(document.body, {
+        useCORS: true,
+        allowTaint: true,
+        scale: 1,
+        logging: false,
+        ignoreElements: function (element) {
+          // Ignore our widget elements
+          return element.id === "peptide-feedback-button" || element.id === "peptide-chat-widget";
+        }
+      }).then(function (canvas) {
+        // Restore elements
+        if (feedbackBtn) feedbackBtn.style.display = "flex";
+        if (widgetContainer) widgetContainer.style.display = "";
+        // Convert to base64
+        var dataUrl = canvas.toDataURL("image/png", 0.8);
+        callback(dataUrl);
+      }).catch(function (err) {
+        console.log("Peptide Chat: Screenshot capture failed", err);
+        if (feedbackBtn) feedbackBtn.style.display = "flex";
+        if (widgetContainer) widgetContainer.style.display = "";
+        callback(null);
+      });
+    });
+  }
+
   // Initialize feedback button on parent website
   function initFeedbackButton() {
     var baseUrl = getBaseUrl();
@@ -246,12 +301,38 @@
           feedbackBtn.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
         });
 
-        // Click handler - open feedback form in popup
+        // Click handler - capture screenshot then open feedback form in popup
         feedbackBtn.addEventListener("click", function () {
-          openFeedbackPopup(baseUrl);
+          // Show loading state
+          var originalContent = feedbackBtn.innerHTML;
+          feedbackBtn.innerHTML = '<span style="margin-left:8px;">Capturing...</span>';
+          feedbackBtn.disabled = true;
+
+          captureParentScreenshot(function (screenshot) {
+            // Restore button
+            feedbackBtn.innerHTML = originalContent;
+            feedbackBtn.disabled = false;
+
+            // Open popup with screenshot
+            openFeedbackPopup(baseUrl, screenshot);
+          });
         });
 
         document.body.appendChild(feedbackBtn);
+
+        // Listen for screenshot requests from popup (for retake functionality)
+        window.addEventListener("message", function (event) {
+          if (event.data && event.data.type === "PEPTIDE_CAPTURE_SCREENSHOT") {
+            captureParentScreenshot(function (screenshot) {
+              if (event.source) {
+                event.source.postMessage({
+                  type: "PEPTIDE_SCREENSHOT_CAPTURED",
+                  data: screenshot
+                }, "*");
+              }
+            });
+          }
+        });
       })
       .catch(function (err) {
         console.log("Peptide Chat: Feedback settings not available", err);
@@ -259,7 +340,16 @@
   }
 
   // Open feedback form in popup window
-  function openFeedbackPopup(baseUrl) {
+  function openFeedbackPopup(baseUrl, screenshot) {
+    // Store screenshot in sessionStorage for popup to retrieve
+    if (screenshot) {
+      try {
+        sessionStorage.setItem("peptide-feedback-screenshot", screenshot);
+      } catch (e) {
+        console.log("Peptide Chat: Could not store screenshot", e);
+      }
+    }
+
     var width = 500;
     var height = 700;
     var left = (window.screen.width - width) / 2;
